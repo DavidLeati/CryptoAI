@@ -7,6 +7,7 @@ import time
 import os
 
 import data 
+from keys import BINANCE_API, SECRET_API
 
 # =============================================================================
 # FUNÇÕES DE CONFIGURAÇÃO
@@ -17,10 +18,10 @@ def create_exchange_connection():
     print("Inicializando a conexão principal com a exchange...")
     try:
         exchange = ccxt.binance({
-            'apiKey': os.environ.get('BINANCE_API_KEY'),     # Busque de variáveis de ambiente
-            'secret': os.environ.get('BINANCE_API_SECRET'),
+            'apiKey': BINANCE_API,
+            'secret': SECRET_API,
             'options': {
-                'defaultType': 'future', # Para operar alavancado
+                'defaultType': 'future',
             },
         })
         # Para usar a Testnet
