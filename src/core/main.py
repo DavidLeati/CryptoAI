@@ -5,40 +5,47 @@
 import time
 import threading
 
-# =============================================================================
-# CONFIGURAÇÃO DO MODO DE OPERAÇÃO
-# =============================================================================
-# MODO DE OPERAÇÃO: True = Paper Trading (simulação), False = Trading Real
-PAPER_TRADING_MODE = True  # ⚠️ ALTERE PARA False APENAS QUANDO QUISER USAR DINHEIRO REAL
+# Importar configurações centralizadas
+import sys
+from pathlib import Path
+config_path = Path(__file__).parent.parent.parent / 'config'
+sys.path.insert(0, str(config_path))
 
-# Importando as funções dos nossos módulos especialistas (CORRIGIDO)
-from exchange_setup import create_exchange_connection, setup_leverage_for_symbol, test_api_connection, check_account_mode
-from data import fetch_data
-from analysis import find_momentum_signal, find_exhaustion_signal
+from settings import (
+    PAPER_TRADING_MODE, TRADE_VALUE_USD, STOP_LOSS_PCT, TAKE_PROFIT_PCT,
+    LEVERAGE_LEVEL, LISTA_DE_ATIVOS, UPDATE_INTERVAL, MAX_CONCURRENT_TRADES,
+    PRIMARY_TIMEFRAME, RSI_PERIOD, MACD_FAST, MACD_SLOW, BB_PERIOD
+)
+
+# Importando as funções dos nossos módulos especialistas
+from utils.exchange_setup import create_exchange_connection, setup_leverage_for_symbol, test_api_connection, check_account_mode
+from utils.data import fetch_data
+from analysis.analysis import find_comprehensive_signal, find_comprehensive_exit_signal
 
 # Importar funções de trading (real ou simulado conforme configuração)
 if PAPER_TRADING_MODE:
-    from paper_orders import paper_open_long_position as open_long_position
-    from paper_orders import paper_open_short_position as open_short_position
-    from paper_orders import paper_close_position as close_position
-    from paper_orders import paper_save_results
+    from trading.paper_trading import paper_open_long_position as open_long_position
+    from trading.paper_trading import paper_open_short_position as open_short_position
+    from trading.paper_trading import paper_close_position as close_position
+    from trading.paper_trading import paper_save_results
     print("🧪 MODO PAPER TRADING ATIVADO - Nenhuma ordem real será executada!")
 else:
-    from orders import open_long_position, open_short_position, close_position
+    from trading.orders import open_long_position, open_short_position, close_position
     print("💰 MODO TRADING REAL ATIVADO - Ordens reais serão executadas!")
 
 # =============================================================================
 # 1. CONFIGURAÇÃO GERAL E RECURSOS COMPARTILHADOS
 # =============================================================================
 
-LISTA_DE_ATIVOS = ['BTC/USDT:USDT', 'ETH/USDT:USDT', 'SOL/USDT:USDT', 'BNB/USDT:USDT', 'XRP/USDT:USDT', 'ADA/USDT:USDT', 'DOGE/USDT:USDT', 'MATIC/USDT:USDT', 
-                  'DOT/USDT:USDT', 'LTC/USDT:USDT', 'AVAX/USDT:USDT', 'LINK/USDT:USDT', 'UNI/USDT:USDT', 'TRX/USDT:USDT', 'ATOM/USDT:USDT']
-TRADE_VALUE_USD = 10.00
-STOP_LOSS_PCT = 1.5
-LEVERAGE_LEVEL = 25
+# =============================================================================
+# 1. CONFIGURAÇÃO GERAL E RECURSOS COMPARTILHADOS
+# =============================================================================
+
+# Converter lista de ativos do settings.py para formato do ccxt
+FORMATTED_ASSETS = [f"{asset.replace('USDT', '/USDT:USDT')}" for asset in LISTA_DE_ATIVOS]
 
 # RECURSOS COMPARTILHADOS:
-posicoes_info = {symbol: 'MONITORING' for symbol in LISTA_DE_ATIVOS}
+posicoes_info = {symbol: 'MONITORING' for symbol in FORMATTED_ASSETS}
 lock_posicoes = threading.Lock() 
 
 # =============================================================================
@@ -64,7 +71,7 @@ def processar_ativo(symbol, client):
                     time.sleep(5)
                     continue
 
-                sinal_entrada = find_momentum_signal(market_data)
+                sinal_entrada = find_comprehensive_signal(market_data)
                 
                 if sinal_entrada == 'COMPRAR':
                     print(f"🚨 SINAL DE COMPRA DETECTADO PARA {symbol}! 🚨")
@@ -90,7 +97,7 @@ def processar_ativo(symbol, client):
                     continue
 
                 position_side = 'LONG' if status_atual == 'IN_LONG' else 'SHORT'
-                sinal_saida = find_exhaustion_signal(market_data, position_side)
+                sinal_saida = find_comprehensive_exit_signal(market_data, position_side)
 
                 if sinal_saida:
                     print(f"🚪 SINAL DE SAÍDA DETECTADO PARA {symbol}! Fechando posição... 🚪")
@@ -142,8 +149,8 @@ def main():
     # 4. Cria e inicia uma thread para cada ativo na watchlist
     threads = []
     if not PAPER_TRADING_MODE:
-        print(f"📋 Configurando alavancagem para {len(LISTA_DE_ATIVOS)} símbolos...")
-        for symbol in LISTA_DE_ATIVOS:
+        print(f"📋 Configurando alavancagem para {len(FORMATTED_ASSETS)} símbolos...")
+        for symbol in FORMATTED_ASSETS:
             print(f"🔧 Preparando {symbol}...")
             setup_leverage_for_symbol(client, symbol, LEVERAGE_LEVEL)  # Sempre continua
             thread = threading.Thread(target=processar_ativo, args=(symbol, client))
@@ -151,8 +158,8 @@ def main():
             thread.start()
             time.sleep(0.2)  # Pausa reduzida para inicialização mais rápida
     else:
-        print(f"🧪 Iniciando simulação com {len(LISTA_DE_ATIVOS)} símbolos...")
-        for symbol in LISTA_DE_ATIVOS:
+        print(f"🧪 Iniciando simulação com {len(FORMATTED_ASSETS)} símbolos...")
+        for symbol in FORMATTED_ASSETS:
             thread = threading.Thread(target=processar_ativo, args=(symbol, client))
             threads.append(thread)
             thread.start()

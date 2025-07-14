@@ -1,0 +1,920 @@
+{% extends "base.html" %}
+
+{% block title %}Configurações - CryptoAI Trading Bot{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Navigation Tabs -->
+    <div class="col-12 mb-4">
+        <ul class="nav nav-pills nav-fill" id="settingsTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="trading-tab" data-bs-toggle="pill" data-bs-target="#trading" type="button">
+                    <i class="fas fa-chart-line me-2"></i>Trading
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="risk-tab" data-bs-toggle="pill" data-bs-target="#risk" type="button">
+                    <i class="fas fa-shield-alt me-2"></i>Gerenciamento de Risco
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="indicators-tab" data-bs-toggle="pill" data-bs-target="#indicators" type="button">
+                    <i class="fas fa-chart-bar me-2"></i>Indicadores
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="notifications-tab" data-bs-toggle="pill" data-bs-target="#notifications" type="button">
+                    <i class="fas fa-bell me-2"></i>Notificações
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="system-tab" data-bs-toggle="pill" data-bs-target="#system" type="button">
+                    <i class="fas fa-cogs me-2"></i>Sistema
+                </button>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="col-12">
+        <div class="tab-content" id="settingsTabContent">
+            <!-- Trading Settings -->
+            <div class="tab-pane fade show active" id="trading" role="tabpanel">
+                <div class="row">
+                    <div class="col-lg-8">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-chart-line me-2"></i>Configurações de Trading
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="tradingSettingsForm">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">Modo de Trading</label>
+                                                <select class="form-select" name="trading_mode">
+                                                    <option value="paper">Paper Trading (Simulação)</option>
+                                                    <option value="live">Trading Real</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">Capital Inicial ($)</label>
+                                                <input type="number" class="form-control" name="initial_capital" step="0.01" min="10">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">Valor por Trade ($)</label>
+                                                <input type="number" class="form-control" name="trade_amount" step="0.01" min="1">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">Máximo Trades Simultâneos</label>
+                                                <input type="number" class="form-control" name="max_concurrent_trades" min="1" max="20">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">Timeframe Principal</label>
+                                                <select class="form-select" name="primary_timeframe">
+                                                    <option value="1m">1 Minuto</option>
+                                                    <option value="5m">5 Minutos</option>
+                                                    <option value="15m">15 Minutos</option>
+                                                    <option value="1h">1 Hora</option>
+                                                    <option value="4h">4 Horas</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">Intervalo de Atualização (segundos)</label>
+                                                <input type="number" class="form-control" name="update_interval" min="1" max="300">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" name="enable_short_trading">
+                                            <label class="form-check-label">Permitir Trading Short</label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" name="auto_save_results">
+                                            <label class="form-check-label">Salvamento Automático de Resultados</label>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-lg-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0">Ativos Monitorados</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label class="form-label">Adicionar Ativo</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="newAssetInput" placeholder="Ex: BTCUSDT">
+                                        <button class="btn btn-outline-success" type="button" onclick="addAsset()">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div id="assetsList" style="max-height: 300px; overflow-y: auto;">
+                                    <!-- Assets will be loaded here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Risk Management Settings -->
+            <div class="tab-pane fade" id="risk" role="tabpanel">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-shield-alt me-2"></i>Gerenciamento de Risco
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="riskSettingsForm">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Stop Loss (%)</label>
+                                        <input type="number" class="form-control" name="stop_loss_percent" step="0.1" min="0.1" max="20">
+                                        <div class="form-text">Percentual de perda máxima por trade</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Take Profit (%)</label>
+                                        <input type="number" class="form-control" name="take_profit_percent" step="0.1" min="0.1" max="50">
+                                        <div class="form-text">Percentual de lucro alvo por trade</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Perda Máxima Diária ($)</label>
+                                        <input type="number" class="form-control" name="max_daily_loss" step="0.01" min="1">
+                                        <div class="form-text">Bot será pausado se atingir esta perda</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Lucro Alvo Diário ($)</label>
+                                        <input type="number" class="form-control" name="daily_profit_target" step="0.01" min="1">
+                                        <div class="form-text">Bot será pausado se atingir este lucro</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Máximo % do Capital por Trade</label>
+                                        <input type="number" class="form-control" name="max_position_size_percent" step="0.1" min="1" max="25">
+                                        <div class="form-text">Percentual máximo do capital por posição</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Drawdown Máximo (%)</label>
+                                        <input type="number" class="form-control" name="max_drawdown_percent" step="0.1" min="5" max="50">
+                                        <div class="form-text">Drawdown máximo permitido</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="enable_trailing_stop">
+                                    <label class="form-check-label">Habilitar Trailing Stop</label>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="enable_position_sizing">
+                                    <label class="form-check-label">Dimensionamento Dinâmico de Posição</label>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Indicators Settings -->
+            <div class="tab-pane fade" id="indicators" role="tabpanel">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-bar me-2"></i>Configurações dos Indicadores
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="indicatorsSettingsForm">
+                            <!-- RSI Settings -->
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <h6 class="mb-0">RSI (Relative Strength Index)</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-3">
+                                            <div class="mb-3">
+                                                <label class="form-label">Período</label>
+                                                <input type="number" class="form-control" name="rsi_period" min="5" max="50">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="mb-3">
+                                                <label class="form-label">Sobrevenda</label>
+                                                <input type="number" class="form-control" name="rsi_oversold" min="10" max="40">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="mb-3">
+                                                <label class="form-label">Sobrecompra</label>
+                                                <input type="number" class="form-control" name="rsi_overbought" min="60" max="90">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="mb-3">
+                                                <label class="form-label">Peso</label>
+                                                <input type="number" class="form-control" name="rsi_weight" step="0.1" min="0" max="1">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- MACD Settings -->
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <h6 class="mb-0">MACD</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-3">
+                                            <div class="mb-3">
+                                                <label class="form-label">EMA Rápida</label>
+                                                <input type="number" class="form-control" name="macd_fast" min="5" max="30">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="mb-3">
+                                                <label class="form-label">EMA Lenta</label>
+                                                <input type="number" class="form-control" name="macd_slow" min="20" max="50">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="mb-3">
+                                                <label class="form-label">Sinal</label>
+                                                <input type="number" class="form-control" name="macd_signal" min="5" max="20">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="mb-3">
+                                                <label class="form-label">Peso</label>
+                                                <input type="number" class="form-control" name="macd_weight" step="0.1" min="0" max="1">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Bollinger Bands Settings -->
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Bandas de Bollinger</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label class="form-label">Período</label>
+                                                <input type="number" class="form-control" name="bb_period" min="10" max="50">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label class="form-label">Desvio Padrão</label>
+                                                <input type="number" class="form-control" name="bb_std" step="0.1" min="1" max="3">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label class="form-label">Peso</label>
+                                                <input type="number" class="form-control" name="bb_weight" step="0.1" min="0" max="1">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- EMA Settings -->
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Médias Móveis Exponenciais</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-3">
+                                            <div class="mb-3">
+                                                <label class="form-label">EMA Curta</label>
+                                                <input type="number" class="form-control" name="ema_short" min="5" max="30">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="mb-3">
+                                                <label class="form-label">EMA Longa</label>
+                                                <input type="number" class="form-control" name="ema_long" min="30" max="100">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="mb-3">
+                                                <label class="form-label">EMA Filtro</label>
+                                                <input type="number" class="form-control" name="ema_filter" min="100" max="300">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="mb-3">
+                                                <label class="form-label">Peso</label>
+                                                <input type="number" class="form-control" name="ema_weight" step="0.1" min="0" max="1">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notifications Settings -->
+            <div class="tab-pane fade" id="notifications" role="tabpanel">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-bell me-2"></i>Configurações de Notificações
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="notificationsSettingsForm">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6>Notificações de Trading</h6>
+                                    <div class="mb-3">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" name="notify_trade_open">
+                                            <label class="form-check-label">Abertura de Trade</label>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" name="notify_trade_close">
+                                            <label class="form-check-label">Fechamento de Trade</label>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" name="notify_stop_loss">
+                                            <label class="form-check-label">Stop Loss Ativado</label>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" name="notify_take_profit">
+                                            <label class="form-check-label">Take Profit Atingido</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <h6>Alertas do Sistema</h6>
+                                    <div class="mb-3">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" name="notify_errors">
+                                            <label class="form-check-label">Erros e Exceções</label>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" name="notify_connection">
+                                            <label class="form-check-label">Problemas de Conexão</label>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" name="notify_daily_summary">
+                                            <label class="form-check-label">Resumo Diário</label>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" name="notify_risk_limits">
+                                            <label class="form-check-label">Limites de Risco</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <hr>
+                            
+                            <h6>Configurações de E-mail</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">E-mail</label>
+                                        <input type="email" class="form-control" name="email_address">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Frequência</label>
+                                        <select class="form-select" name="email_frequency">
+                                            <option value="immediate">Imediato</option>
+                                            <option value="hourly">A cada hora</option>
+                                            <option value="daily">Diário</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- System Settings -->
+            <div class="tab-pane fade" id="system" role="tabpanel">
+                <div class="row">
+                    <div class="col-lg-8">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-cogs me-2"></i>Configurações do Sistema
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="systemSettingsForm">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">Nível de Log</label>
+                                                <select class="form-select" name="log_level">
+                                                    <option value="DEBUG">Debug</option>
+                                                    <option value="INFO">Info</option>
+                                                    <option value="WARNING">Warning</option>
+                                                    <option value="ERROR">Error</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">Fuso Horário</label>
+                                                <select class="form-select" name="timezone">
+                                                    <option value="America/Sao_Paulo">São Paulo (BRT)</option>
+                                                    <option value="UTC">UTC</option>
+                                                    <option value="America/New_York">Nova York (EST)</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">Threads de Trading</label>
+                                                <input type="number" class="form-control" name="trading_threads" min="1" max="10">
+                                                <div class="form-text">Número de threads para processamento paralelo</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">Timeout de API (segundos)</label>
+                                                <input type="number" class="form-control" name="api_timeout" min="5" max="60">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" name="enable_debug_mode">
+                                            <label class="form-check-label">Modo Debug</label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" name="auto_restart">
+                                            <label class="form-check-label">Reinício Automático em Caso de Erro</label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" name="backup_data">
+                                            <label class="form-check-label">Backup Automático de Dados</label>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-lg-4">
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h6 class="mb-0">Ações do Sistema</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-grid gap-2">
+                                    <button class="btn btn-warning" onclick="restartBot()">
+                                        <i class="fas fa-redo me-2"></i>Reiniciar Bot
+                                    </button>
+                                    <button class="btn btn-info" onclick="clearLogs()">
+                                        <i class="fas fa-trash me-2"></i>Limpar Logs
+                                    </button>
+                                    <button class="btn btn-success" onclick="exportSettings()">
+                                        <i class="fas fa-download me-2"></i>Exportar Configurações
+                                    </button>
+                                    <button class="btn btn-outline-light" onclick="resetToDefaults()">
+                                        <i class="fas fa-undo me-2"></i>Restaurar Padrões
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0">Status do Sistema</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-2">
+                                    <div class="d-flex justify-content-between">
+                                        <span>Versão:</span>
+                                        <span id="systemVersion">1.0.0</span>
+                                    </div>
+                                </div>
+                                <div class="mb-2">
+                                    <div class="d-flex justify-content-between">
+                                        <span>Uptime:</span>
+                                        <span id="systemUptime">-</span>
+                                    </div>
+                                </div>
+                                <div class="mb-2">
+                                    <div class="d-flex justify-content-between">
+                                        <span>Memória:</span>
+                                        <span id="memoryUsage">-</span>
+                                    </div>
+                                </div>
+                                <div class="mb-2">
+                                    <div class="d-flex justify-content-between">
+                                        <span>CPU:</span>
+                                        <span id="cpuUsage">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Save Settings Button -->
+<div class="row mt-4">
+    <div class="col-12 text-center">
+        <button class="btn btn-success btn-lg" onclick="saveAllSettings()">
+            <i class="fas fa-save me-2"></i>Salvar Todas as Configurações
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let settings = {};
+    let monitoredAssets = [];
+
+    // Initialize settings page
+    document.addEventListener('DOMContentLoaded', function() {
+        loadAllSettings();
+        loadMonitoredAssets();
+        loadSystemStatus();
+        
+        // Update system status every 30 seconds
+        setInterval(loadSystemStatus, 30000);
+    });
+
+    // Load all settings
+    function loadAllSettings() {
+        fetch('/api/settings')
+            .then(response => response.json())
+            .then(data => {
+                settings = data;
+                populateSettingsForms();
+            })
+            .catch(error => {
+                showAlert('error', 'Erro ao carregar configurações');
+                console.error('Erro ao carregar configurações:', error);
+            });
+    }
+
+    // Populate settings forms
+    function populateSettingsForms() {
+        // Trading settings
+        populateForm('tradingSettingsForm', settings.trading || {});
+        
+        // Risk settings
+        populateForm('riskSettingsForm', settings.risk || {});
+        
+        // Indicators settings
+        populateForm('indicatorsSettingsForm', settings.indicators || {});
+        
+        // Notifications settings
+        populateForm('notificationsSettingsForm', settings.notifications || {});
+        
+        // System settings
+        populateForm('systemSettingsForm', settings.system || {});
+    }
+
+    // Populate individual form
+    function populateForm(formId, data) {
+        const form = document.getElementById(formId);
+        if (!form) return;
+        
+        Object.keys(data).forEach(key => {
+            const input = form.querySelector(`[name="${key}"]`);
+            if (input) {
+                if (input.type === 'checkbox') {
+                    input.checked = data[key];
+                } else {
+                    input.value = data[key];
+                }
+            }
+        });
+    }
+
+    // Load monitored assets
+    function loadMonitoredAssets() {
+        fetch('/api/trading/assets')
+            .then(response => response.json())
+            .then(data => {
+                monitoredAssets = data.assets || [];
+                displayAssetsList();
+            })
+            .catch(error => {
+                console.error('Erro ao carregar ativos:', error);
+            });
+    }
+
+    // Display assets list
+    function displayAssetsList() {
+        const container = document.getElementById('assetsList');
+        
+        if (monitoredAssets.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-3">
+                    <i class="fas fa-coins fa-2x mb-2"></i>
+                    <p>Nenhum ativo configurado</p>
+                </div>
+            `;
+            return;
+        }
+        
+        const assetsHTML = monitoredAssets.map(asset => `
+            <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-secondary">
+                <div>
+                    <strong>${asset}</strong>
+                </div>
+                <button class="btn btn-outline-danger btn-sm" onclick="removeAsset('${asset}')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `).join('');
+        
+        container.innerHTML = assetsHTML;
+    }
+
+    // Add asset
+    function addAsset() {
+        const input = document.getElementById('newAssetInput');
+        const asset = input.value.toUpperCase().trim();
+        
+        if (!asset) {
+            showAlert('warning', 'Digite um símbolo válido');
+            return;
+        }
+        
+        if (monitoredAssets.includes(asset)) {
+            showAlert('warning', 'Ativo já está sendo monitorado');
+            return;
+        }
+        
+        monitoredAssets.push(asset);
+        input.value = '';
+        displayAssetsList();
+        showAlert('success', `Ativo ${asset} adicionado`);
+    }
+
+    // Remove asset
+    function removeAsset(asset) {
+        monitoredAssets = monitoredAssets.filter(a => a !== asset);
+        displayAssetsList();
+        showAlert('info', `Ativo ${asset} removido`);
+    }
+
+    // Load system status
+    function loadSystemStatus() {
+        fetch('/api/system/status')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('systemVersion').textContent = data.version || '1.0.0';
+                document.getElementById('systemUptime').textContent = data.uptime || '-';
+                document.getElementById('memoryUsage').textContent = data.memory_usage || '-';
+                document.getElementById('cpuUsage').textContent = data.cpu_usage || '-';
+            })
+            .catch(error => {
+                console.error('Erro ao carregar status do sistema:', error);
+            });
+    }
+
+    // Save all settings
+    function saveAllSettings() {
+        const allSettings = {
+            trading: getFormData('tradingSettingsForm'),
+            risk: getFormData('riskSettingsForm'),
+            indicators: getFormData('indicatorsSettingsForm'),
+            notifications: getFormData('notificationsSettingsForm'),
+            system: getFormData('systemSettingsForm'),
+            assets: monitoredAssets
+        };
+        
+        fetch('/api/settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(allSettings)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('success', 'Configurações salvas com sucesso!');
+                settings = allSettings;
+            } else {
+                showAlert('error', data.message || 'Erro ao salvar configurações');
+            }
+        })
+        .catch(error => {
+            showAlert('error', 'Erro de comunicação com o servidor');
+            console.error('Erro ao salvar configurações:', error);
+        });
+    }
+
+    // Get form data
+    function getFormData(formId) {
+        const form = document.getElementById(formId);
+        const formData = new FormData(form);
+        const data = {};
+        
+        for (let [key, value] of formData.entries()) {
+            const input = form.querySelector(`[name="${key}"]`);
+            if (input.type === 'checkbox') {
+                data[key] = input.checked;
+            } else if (input.type === 'number') {
+                data[key] = parseFloat(value) || 0;
+            } else {
+                data[key] = value;
+            }
+        }
+        
+        return data;
+    }
+
+    // Restart bot
+    function restartBot() {
+        if (confirm('Tem certeza que deseja reiniciar o bot?')) {
+            fetch('/api/bot/restart', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showAlert('success', 'Bot reiniciado com sucesso!');
+                    } else {
+                        showAlert('error', data.message || 'Erro ao reiniciar bot');
+                    }
+                })
+                .catch(error => {
+                    showAlert('error', 'Erro de comunicação com o servidor');
+                    console.error('Erro ao reiniciar bot:', error);
+                });
+        }
+    }
+
+    // Clear logs
+    function clearLogs() {
+        if (confirm('Tem certeza que deseja limpar todos os logs?')) {
+            fetch('/api/system/clear-logs', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showAlert('success', 'Logs limpos com sucesso!');
+                    } else {
+                        showAlert('error', data.message || 'Erro ao limpar logs');
+                    }
+                })
+                .catch(error => {
+                    showAlert('error', 'Erro de comunicação com o servidor');
+                    console.error('Erro ao limpar logs:', error);
+                });
+        }
+    }
+
+    // Export settings
+    function exportSettings() {
+        fetch('/api/settings/export')
+            .then(response => response.blob())
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `cryptoai_settings_${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+                window.URL.revokeObjectURL(url);
+                showAlert('success', 'Configurações exportadas com sucesso!');
+            })
+            .catch(error => {
+                showAlert('error', 'Erro ao exportar configurações');
+                console.error('Erro ao exportar configurações:', error);
+            });
+    }
+
+    // Reset to defaults
+    function resetToDefaults() {
+        if (confirm('Tem certeza que deseja restaurar as configurações padrão? Esta ação não pode ser desfeita.')) {
+            fetch('/api/settings/reset', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showAlert('success', 'Configurações restauradas para o padrão!');
+                        loadAllSettings();
+                        loadMonitoredAssets();
+                    } else {
+                        showAlert('error', data.message || 'Erro ao restaurar configurações');
+                    }
+                })
+                .catch(error => {
+                    showAlert('error', 'Erro de comunicação com o servidor');
+                    console.error('Erro ao restaurar configurações:', error);
+                });
+        }
+    }
+
+    // Handle Enter key in asset input
+    document.getElementById('newAssetInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            addAsset();
+        }
+    });
+
+    // Real-time updates
+    function updateTradingData(data) {
+        // Update system status if needed
+        if (data.type === 'system_update') {
+            loadSystemStatus();
+        }
+    }
+
+    // Refresh page data
+    function refreshPageData() {
+        loadAllSettings();
+        loadMonitoredAssets();
+        loadSystemStatus();
+    }
+</script>
+{% endblock %}

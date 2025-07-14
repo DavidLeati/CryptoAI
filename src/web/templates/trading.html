@@ -1,0 +1,724 @@
+{% extends "base.html" %}
+
+{% block title %}Trading - CryptoAI Trading Bot{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Filters and Controls -->
+    <div class="col-12 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-filter me-2"></i>Filtros e Controles
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row align-items-end">
+                    <div class="col-md-3">
+                        <label class="form-label">Período</label>
+                        <select id="periodFilter" class="form-select">
+                            <option value="1h">Última Hora</option>
+                            <option value="6h">Últimas 6 Horas</option>
+                            <option value="24h" selected>Últimas 24 Horas</option>
+                            <option value="7d">Últimos 7 Dias</option>
+                            <option value="30d">Últimos 30 Dias</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Status</label>
+                        <select id="statusFilter" class="form-select">
+                            <option value="all">Todos</option>
+                            <option value="open">Abertos</option>
+                            <option value="closed">Fechados</option>
+                            <option value="profit">Lucro</option>
+                            <option value="loss">Prejuízo</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Ativo</label>
+                        <select id="symbolFilter" class="form-select">
+                            <option value="all">Todos os Ativos</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-primary w-100" onclick="applyFilters()">
+                            <i class="fas fa-search me-1"></i>Aplicar Filtros
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Trading Statistics -->
+    <div class="col-12 mb-4">
+        <div class="row">
+            <div class="col-md-2">
+                <div class="metric-card text-center">
+                    <div class="metric-label">Total de Trades</div>
+                    <div id="totalTrades" class="metric-value">0</div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="metric-card text-center">
+                    <div class="metric-label">Trades Lucrativos</div>
+                    <div id="profitableTrades" class="metric-value text-success">0</div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="metric-card text-center">
+                    <div class="metric-label">Trades Prejuízo</div>
+                    <div id="lossTrades" class="metric-value text-danger">0</div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="metric-card text-center">
+                    <div class="metric-label">Win Rate</div>
+                    <div id="winRate" class="metric-value">0%</div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="metric-card text-center">
+                    <div class="metric-label">Maior Lucro</div>
+                    <div id="maxProfit" class="metric-value text-success">$0.00</div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="metric-card text-center">
+                    <div class="metric-label">Maior Prejuízo</div>
+                    <div id="maxLoss" class="metric-value text-danger">$0.00</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="col-lg-8">
+        <!-- Trades Table -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-list me-2"></i>Histórico de Trades
+                </h5>
+                <div>
+                    <button class="btn btn-outline-light btn-sm me-2" onclick="exportTrades()">
+                        <i class="fas fa-download me-1"></i>Exportar
+                    </button>
+                    <button class="btn btn-outline-light btn-sm" onclick="refreshTrades()">
+                        <i class="fas fa-refresh me-1"></i>Atualizar
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="tradesTableContainer">
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
+                        <p>Carregando trades...</p>
+                    </div>
+                </div>
+                
+                <!-- Pagination -->
+                <nav id="paginationNav" class="mt-3" style="display: none;">
+                    <ul id="pagination" class="pagination justify-content-center">
+                        <!-- Pagination will be generated here -->
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+        <!-- Open Positions -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-line me-2"></i>Posições Abertas
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="openPositionsContainer">
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
+                        <p>Carregando posições...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Trading Signals -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-bullseye me-2"></i>Sinais Recentes
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="tradingSignalsContainer">
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
+                        <p>Carregando sinais...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance by Asset -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-coins me-2"></i>Performance por Ativo
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="assetPerformanceContainer">
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
+                        <p>Carregando dados...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Trade Details Modal -->
+<div class="modal fade" id="tradeDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-info-circle me-2"></i>Detalhes do Trade
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="tradeDetailsContent">
+                <!-- Trade details will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let currentPage = 1;
+    let totalPages = 1;
+    let currentFilters = {
+        period: '24h',
+        status: 'all',
+        symbol: 'all'
+    };
+
+    // Initialize trading page
+    document.addEventListener('DOMContentLoaded', function() {
+        loadTradingData();
+        loadSymbolOptions();
+        
+        // Set up filter change handlers
+        document.getElementById('periodFilter').addEventListener('change', updateFilters);
+        document.getElementById('statusFilter').addEventListener('change', updateFilters);
+        document.getElementById('symbolFilter').addEventListener('change', updateFilters);
+    });
+
+    // Load all trading data
+    function loadTradingData() {
+        loadTradingStatistics();
+        loadTradesTable();
+        loadOpenPositions();
+        loadTradingSignals();
+        loadAssetPerformance();
+    }
+
+    // Load symbol options for filter
+    function loadSymbolOptions() {
+        fetch('/api/trading/symbols')
+            .then(response => response.json())
+            .then(data => {
+                const select = document.getElementById('symbolFilter');
+                const currentValue = select.value;
+                
+                // Clear existing options except "all"
+                select.innerHTML = '<option value="all">Todos os Ativos</option>';
+                
+                // Add symbol options
+                data.symbols.forEach(symbol => {
+                    const option = document.createElement('option');
+                    option.value = symbol;
+                    option.textContent = symbol;
+                    select.appendChild(option);
+                });
+                
+                // Restore selection
+                select.value = currentValue;
+            })
+            .catch(error => {
+                console.error('Erro ao carregar símbolos:', error);
+            });
+    }
+
+    // Update filters
+    function updateFilters() {
+        currentFilters.period = document.getElementById('periodFilter').value;
+        currentFilters.status = document.getElementById('statusFilter').value;
+        currentFilters.symbol = document.getElementById('symbolFilter').value;
+    }
+
+    // Apply filters
+    function applyFilters() {
+        updateFilters();
+        currentPage = 1;
+        loadTradingData();
+    }
+
+    // Load trading statistics
+    function loadTradingStatistics() {
+        const params = new URLSearchParams(currentFilters);
+        
+        fetch(`/api/trading/statistics?${params}`)
+            .then(response => response.json())
+            .then(data => {
+                updateTradingStatistics(data);
+            })
+            .catch(error => {
+                console.error('Erro ao carregar estatísticas de trading:', error);
+            });
+    }
+
+    // Update trading statistics
+    function updateTradingStatistics(data) {
+        document.getElementById('totalTrades').textContent = data.total_trades || 0;
+        document.getElementById('profitableTrades').textContent = data.profitable_trades || 0;
+        document.getElementById('lossTrades').textContent = data.loss_trades || 0;
+        document.getElementById('winRate').textContent = formatPercentage(data.win_rate || 0);
+        document.getElementById('maxProfit').textContent = formatCurrency(data.max_profit || 0);
+        document.getElementById('maxLoss').textContent = formatCurrency(data.max_loss || 0);
+    }
+
+    // Load trades table
+    function loadTradesTable(page = 1) {
+        const params = new URLSearchParams({
+            ...currentFilters,
+            page: page,
+            limit: 20
+        });
+        
+        const container = document.getElementById('tradesTableContainer');
+        container.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
+                <p>Carregando trades...</p>
+            </div>
+        `;
+        
+        fetch(`/api/trades?${params}`)
+            .then(response => response.json())
+            .then(data => {
+                displayTradesTable(data.trades || []);
+                updatePagination(data.pagination || {});
+            })
+            .catch(error => {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                        <p>Erro ao carregar trades</p>
+                    </div>
+                `;
+                console.error('Erro ao carregar trades:', error);
+            });
+    }
+
+    // Display trades table
+    function displayTradesTable(trades) {
+        const container = document.getElementById('tradesTableContainer');
+        
+        if (trades.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-chart-line fa-2x mb-3"></i>
+                    <p>Nenhum trade encontrado</p>
+                </div>
+            `;
+            return;
+        }
+        
+        const tableHTML = `
+            <div class="table-responsive">
+                <table class="table table-dark table-hover">
+                    <thead>
+                        <tr>
+                            <th>Ativo</th>
+                            <th>Lado</th>
+                            <th>Quantidade</th>
+                            <th>Preço Entrada</th>
+                            <th>Preço Saída</th>
+                            <th>P&L</th>
+                            <th>Data/Hora</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${trades.map(trade => `
+                            <tr>
+                                <td><strong>${trade.symbol}</strong></td>
+                                <td>
+                                    <span class="badge ${trade.side === 'BUY' ? 'bg-success' : 'bg-danger'}">
+                                        ${trade.side}
+                                    </span>
+                                </td>
+                                <td>${parseFloat(trade.quantity).toFixed(4)}</td>
+                                <td>$${parseFloat(trade.entry_price).toFixed(4)}</td>
+                                <td>${trade.exit_price ? '$' + parseFloat(trade.exit_price).toFixed(4) : '-'}</td>
+                                <td class="${trade.pnl >= 0 ? 'text-success' : 'text-danger'}">
+                                    ${formatCurrency(trade.pnl)}
+                                </td>
+                                <td>${formatDateTime(trade.timestamp)}</td>
+                                <td>
+                                    <button class="btn btn-outline-info btn-sm" onclick="showTradeDetails('${trade.id}')">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+        
+        container.innerHTML = tableHTML;
+    }
+
+    // Update pagination
+    function updatePagination(pagination) {
+        currentPage = pagination.current_page || 1;
+        totalPages = pagination.total_pages || 1;
+        
+        const paginationContainer = document.getElementById('pagination');
+        const paginationNav = document.getElementById('paginationNav');
+        
+        if (totalPages <= 1) {
+            paginationNav.style.display = 'none';
+            return;
+        }
+        
+        paginationNav.style.display = 'block';
+        
+        let paginationHTML = '';
+        
+        // Previous button
+        paginationHTML += `
+            <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+                <a class="page-link" href="#" onclick="changePage(${currentPage - 1})">Anterior</a>
+            </li>
+        `;
+        
+        // Page numbers
+        const startPage = Math.max(1, currentPage - 2);
+        const endPage = Math.min(totalPages, currentPage + 2);
+        
+        for (let i = startPage; i <= endPage; i++) {
+            paginationHTML += `
+                <li class="page-item ${i === currentPage ? 'active' : ''}">
+                    <a class="page-link" href="#" onclick="changePage(${i})">${i}</a>
+                </li>
+            `;
+        }
+        
+        // Next button
+        paginationHTML += `
+            <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+                <a class="page-link" href="#" onclick="changePage(${currentPage + 1})">Próximo</a>
+            </li>
+        `;
+        
+        paginationContainer.innerHTML = paginationHTML;
+    }
+
+    // Change page
+    function changePage(page) {
+        if (page >= 1 && page <= totalPages && page !== currentPage) {
+            currentPage = page;
+            loadTradesTable(page);
+        }
+    }
+
+    // Load open positions
+    function loadOpenPositions() {
+        fetch('/api/trading/positions/open')
+            .then(response => response.json())
+            .then(data => {
+                displayOpenPositions(data.positions || []);
+            })
+            .catch(error => {
+                document.getElementById('openPositionsContainer').innerHTML = `
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                        <p>Erro ao carregar posições</p>
+                    </div>
+                `;
+                console.error('Erro ao carregar posições abertas:', error);
+            });
+    }
+
+    // Display open positions
+    function displayOpenPositions(positions) {
+        const container = document.getElementById('openPositionsContainer');
+        
+        if (positions.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-chart-line fa-2x mb-3"></i>
+                    <p>Nenhuma posição aberta</p>
+                </div>
+            `;
+            return;
+        }
+        
+        const positionsHTML = positions.map(position => `
+            <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-secondary">
+                <div>
+                    <strong>${position.symbol}</strong>
+                    <span class="badge ${position.side === 'BUY' ? 'bg-success' : 'bg-danger'} ms-2">
+                        ${position.side}
+                    </span>
+                    <div class="small text-muted">${parseFloat(position.quantity).toFixed(4)}</div>
+                </div>
+                <div class="text-end">
+                    <div class="fw-bold ${position.unrealized_pnl >= 0 ? 'text-success' : 'text-danger'}">
+                        ${formatCurrency(position.unrealized_pnl)}
+                    </div>
+                    <div class="small text-muted">$${parseFloat(position.entry_price).toFixed(4)}</div>
+                </div>
+            </div>
+        `).join('');
+        
+        container.innerHTML = positionsHTML;
+    }
+
+    // Load trading signals
+    function loadTradingSignals() {
+        fetch('/api/trading/signals/recent?limit=10')
+            .then(response => response.json())
+            .then(data => {
+                displayTradingSignals(data.signals || []);
+            })
+            .catch(error => {
+                document.getElementById('tradingSignalsContainer').innerHTML = `
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                        <p>Erro ao carregar sinais</p>
+                    </div>
+                `;
+                console.error('Erro ao carregar sinais de trading:', error);
+            });
+    }
+
+    // Display trading signals
+    function displayTradingSignals(signals) {
+        const container = document.getElementById('tradingSignalsContainer');
+        
+        if (signals.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-bullseye fa-2x mb-3"></i>
+                    <p>Nenhum sinal recente</p>
+                </div>
+            `;
+            return;
+        }
+        
+        const signalsHTML = signals.map(signal => `
+            <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-secondary">
+                <div>
+                    <strong>${signal.symbol}</strong>
+                    <span class="badge ${signal.signal === 'BUY' ? 'bg-success' : signal.signal === 'SELL' ? 'bg-danger' : 'bg-warning'} ms-2">
+                        ${signal.signal}
+                    </span>
+                    <div class="small text-muted">${signal.strength}% força</div>
+                </div>
+                <div class="text-end">
+                    <div class="small text-muted">${formatDateTime(signal.timestamp)}</div>
+                </div>
+            </div>
+        `).join('');
+        
+        container.innerHTML = signalsHTML;
+    }
+
+    // Load asset performance
+    function loadAssetPerformance() {
+        const params = new URLSearchParams(currentFilters);
+        
+        fetch(`/api/trading/performance/assets?${params}`)
+            .then(response => response.json())
+            .then(data => {
+                displayAssetPerformance(data.performance || []);
+            })
+            .catch(error => {
+                document.getElementById('assetPerformanceContainer').innerHTML = `
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                        <p>Erro ao carregar dados</p>
+                    </div>
+                `;
+                console.error('Erro ao carregar performance por ativo:', error);
+            });
+    }
+
+    // Display asset performance
+    function displayAssetPerformance(performance) {
+        const container = document.getElementById('assetPerformanceContainer');
+        
+        if (performance.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-coins fa-2x mb-3"></i>
+                    <p>Nenhum dado disponível</p>
+                </div>
+            `;
+            return;
+        }
+        
+        const performanceHTML = performance.map(asset => `
+            <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-secondary">
+                <div>
+                    <strong>${asset.symbol}</strong>
+                    <div class="small text-muted">${asset.trades} trades</div>
+                </div>
+                <div class="text-end">
+                    <div class="fw-bold ${asset.pnl >= 0 ? 'text-success' : 'text-danger'}">
+                        ${formatCurrency(asset.pnl)}
+                    </div>
+                    <div class="small text-muted">${formatPercentage(asset.win_rate)}% win</div>
+                </div>
+            </div>
+        `).join('');
+        
+        container.innerHTML = performanceHTML;
+    }
+
+    // Show trade details
+    function showTradeDetails(tradeId) {
+        fetch(`/api/trades/${tradeId}`)
+            .then(response => response.json())
+            .then(data => {
+                displayTradeDetails(data.trade);
+                new bootstrap.Modal(document.getElementById('tradeDetailsModal')).show();
+            })
+            .catch(error => {
+                showAlert('error', 'Erro ao carregar detalhes do trade');
+                console.error('Erro ao carregar detalhes do trade:', error);
+            });
+    }
+
+    // Display trade details
+    function displayTradeDetails(trade) {
+        const content = document.getElementById('tradeDetailsContent');
+        
+        const detailsHTML = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Informações Básicas</h6>
+                    <table class="table table-dark table-sm">
+                        <tr><td>ID:</td><td>${trade.id}</td></tr>
+                        <tr><td>Símbolo:</td><td><strong>${trade.symbol}</strong></td></tr>
+                        <tr><td>Lado:</td><td><span class="badge ${trade.side === 'BUY' ? 'bg-success' : 'bg-danger'}">${trade.side}</span></td></tr>
+                        <tr><td>Quantidade:</td><td>${parseFloat(trade.quantity).toFixed(4)}</td></tr>
+                        <tr><td>Status:</td><td>${trade.status}</td></tr>
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <h6>Preços e P&L</h6>
+                    <table class="table table-dark table-sm">
+                        <tr><td>Preço Entrada:</td><td>$${parseFloat(trade.entry_price).toFixed(4)}</td></tr>
+                        <tr><td>Preço Saída:</td><td>${trade.exit_price ? '$' + parseFloat(trade.exit_price).toFixed(4) : '-'}</td></tr>
+                        <tr><td>P&L:</td><td class="${trade.pnl >= 0 ? 'text-success' : 'text-danger'}">${formatCurrency(trade.pnl)}</td></tr>
+                        <tr><td>Taxa:</td><td>${formatCurrency(trade.fee || 0)}</td></tr>
+                    </table>
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-12">
+                    <h6>Timestamps</h6>
+                    <table class="table table-dark table-sm">
+                        <tr><td>Abertura:</td><td>${formatDateTime(trade.timestamp)}</td></tr>
+                        <tr><td>Fechamento:</td><td>${trade.exit_timestamp ? formatDateTime(trade.exit_timestamp) : '-'}</td></tr>
+                        <tr><td>Duração:</td><td>${trade.duration || '-'}</td></tr>
+                    </table>
+                </div>
+            </div>
+            ${trade.signals ? `
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <h6>Sinais de Entrada</h6>
+                        <div class="small text-muted">${JSON.stringify(trade.signals, null, 2)}</div>
+                    </div>
+                </div>
+            ` : ''}
+        `;
+        
+        content.innerHTML = detailsHTML;
+    }
+
+    // Export trades
+    function exportTrades() {
+        const params = new URLSearchParams(currentFilters);
+        
+        showAlert('info', 'Preparando exportação...');
+        
+        fetch(`/api/trades/export?${params}`)
+            .then(response => response.blob())
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `trades_${new Date().toISOString().split('T')[0]}.csv`;
+                a.click();
+                window.URL.revokeObjectURL(url);
+                showAlert('success', 'Trades exportados com sucesso!');
+            })
+            .catch(error => {
+                showAlert('error', 'Erro ao exportar trades');
+                console.error('Erro ao exportar trades:', error);
+            });
+    }
+
+    // Refresh trades
+    function refreshTrades() {
+        loadTradesTable(currentPage);
+    }
+
+    // Real-time updates
+    function updateTradingData(data) {
+        if (data.type === 'new_trade' || data.type === 'position_closed') {
+            loadTradingData();
+        } else if (data.type === 'new_signal') {
+            loadTradingSignals();
+        }
+    }
+
+    // Refresh page data
+    function refreshPageData() {
+        loadTradingData();
+    }
+
+    // Socket events specific to trading page
+    socket.on('new_trade', function(data) {
+        loadTradingStatistics();
+        loadTradesTable(currentPage);
+        loadAssetPerformance();
+        showAlert('info', `Novo trade: ${data.symbol} - ${data.side}`);
+    });
+
+    socket.on('position_closed', function(data) {
+        loadOpenPositions();
+        loadTradesTable(currentPage);
+        showAlert('success', `Posição fechada: ${data.symbol} - P&L: ${formatCurrency(data.pnl)}`);
+    });
+
+    socket.on('new_signal', function(data) {
+        loadTradingSignals();
+        showAlert('info', `Novo sinal: ${data.symbol} - ${data.signal}`);
+    });
+</script>
+{% endblock %}

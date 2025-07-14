@@ -24,8 +24,6 @@ def fetch_data(client, symbol, timeframe='1m', limit=100):
     if not client:
         print("Erro: O objeto de conexão da exchange não foi fornecido.")
         return None
-
-    print(f"Buscando {limit} velas de {timeframe} para o símbolo {symbol}...")
     
     try:
         # Converter símbolo para formato da Binance

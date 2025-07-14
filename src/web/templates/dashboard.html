@@ -1,0 +1,538 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - CryptoAI Trading Bot{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Overview Cards -->
+    <div class="col-12 mb-4">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="metric-label">Saldo Total</div>
+                            <div id="totalBalance" class="metric-value">$0.00</div>
+                        </div>
+                        <div class="text-warning">
+                            <i class="fas fa-wallet fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="metric-label">P&L Total</div>
+                            <div id="totalPnl" class="metric-value">$0.00</div>
+                        </div>
+                        <div class="text-info">
+                            <i class="fas fa-chart-line fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="metric-label">Trades Hoje</div>
+                            <div id="todayTrades" class="metric-value">0</div>
+                        </div>
+                        <div class="text-success">
+                            <i class="fas fa-exchange-alt fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="metric-label">Taxa de Sucesso</div>
+                            <div id="successRate" class="metric-value">0%</div>
+                        </div>
+                        <div class="text-primary">
+                            <i class="fas fa-target fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="col-lg-8">
+        <!-- Bot Status -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-robot me-2"></i>Status do Bot
+                </h5>
+                <span id="botStatusBadge" class="badge bg-secondary">Parado</span>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Status:</strong> <span id="botStatus">Parado</span></p>
+                        <p><strong>Uptime:</strong> <span id="botUptime">00:00:00</span></p>
+                        <p><strong>Última Atualização:</strong> <span id="lastUpdate">-</span></p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Ativos Monitorados:</strong> <span id="monitoredAssets">0</span></p>
+                        <p><strong>Posições Abertas:</strong> <span id="openPositions">0</span></p>
+                        <p><strong>Sinais Detectados:</strong> <span id="signalsDetected">0</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Trades -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-history me-2"></i>Trades Recentes
+                </h5>
+                <button class="btn btn-outline-light btn-sm" onclick="refreshTrades()">
+                    <i class="fas fa-refresh"></i>
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="recentTradesContainer">
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
+                        <p>Carregando trades...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Chart -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-area me-2"></i>Performance da Conta
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="performanceChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+        <!-- Market Overview -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-globe me-2"></i>Visão Geral do Mercado
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="marketOverview">
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
+                        <p>Carregando dados...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Performers -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-trophy me-2"></i>Melhores Performers
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="topPerformers">
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
+                        <p>Carregando dados...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Resources -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-server me-2"></i>Recursos do Sistema
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <span>CPU</span>
+                        <span id="cpuUsage">0%</span>
+                    </div>
+                    <div class="progress">
+                        <div id="cpuProgress" class="progress-bar bg-info" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <span>Memória</span>
+                        <span id="memoryUsage">0%</span>
+                    </div>
+                    <div class="progress">
+                        <div id="memoryProgress" class="progress-bar bg-warning" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <div>
+                    <div class="d-flex justify-content-between">
+                        <span>Conexões API</span>
+                        <span id="apiConnections">0</span>
+                    </div>
+                    <div class="progress">
+                        <div id="apiProgress" class="progress-bar bg-success" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let performanceChart = null;
+    let lastDataUpdate = null;
+
+    // Initialize dashboard
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeChart();
+        loadDashboardData();
+        
+        // Set up real-time updates
+        setInterval(updateSystemResources, 5000);
+    });
+
+    // Initialize performance chart
+    function initializeChart() {
+        const ctx = document.getElementById('performanceChart').getContext('2d');
+        performanceChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Saldo da Conta',
+                    data: [],
+                    borderColor: '#17a2b8',
+                    backgroundColor: 'rgba(23, 162, 184, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: '#ffffff'
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: {
+                            color: '#ffffff'
+                        },
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        }
+                    },
+                    y: {
+                        ticks: {
+                            color: '#ffffff',
+                            callback: function(value) {
+                                return formatCurrency(value);
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Load dashboard data
+    function loadDashboardData() {
+        // Load overview data
+        fetch('/api/dashboard/overview')
+            .then(response => response.json())
+            .then(data => {
+                updateOverviewCards(data);
+            })
+            .catch(error => {
+                console.error('Erro ao carregar dados do dashboard:', error);
+            });
+
+        // Load recent trades
+        refreshTrades();
+        
+        // Load market data
+        loadMarketOverview();
+        
+        // Load performance data
+        loadPerformanceData();
+    }
+
+    // Update overview cards
+    function updateOverviewCards(data) {
+        document.getElementById('totalBalance').textContent = formatCurrency(data.total_balance || 0);
+        
+        const pnlElement = document.getElementById('totalPnl');
+        const pnlValue = data.total_pnl || 0;
+        pnlElement.textContent = formatCurrency(pnlValue);
+        pnlElement.className = 'metric-value ' + (pnlValue >= 0 ? 'positive' : 'negative');
+        
+        document.getElementById('todayTrades').textContent = data.today_trades || 0;
+        document.getElementById('successRate').textContent = formatPercentage(data.success_rate || 0);
+        
+        // Update bot status
+        const statusElement = document.getElementById('botStatus');
+        const badgeElement = document.getElementById('botStatusBadge');
+        
+        if (data.bot_running) {
+            statusElement.textContent = 'Executando';
+            badgeElement.textContent = 'Ativo';
+            badgeElement.className = 'badge bg-success';
+        } else {
+            statusElement.textContent = 'Parado';
+            badgeElement.textContent = 'Parado';
+            badgeElement.className = 'badge bg-secondary';
+        }
+        
+        document.getElementById('botUptime').textContent = data.uptime || '00:00:00';
+        document.getElementById('lastUpdate').textContent = data.last_update ? formatDateTime(data.last_update) : '-';
+        document.getElementById('monitoredAssets').textContent = data.monitored_assets || 0;
+        document.getElementById('openPositions').textContent = data.open_positions || 0;
+        document.getElementById('signalsDetected').textContent = data.signals_detected || 0;
+    }
+
+    // Refresh trades
+    function refreshTrades() {
+        const container = document.getElementById('recentTradesContainer');
+        container.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
+                <p>Carregando trades...</p>
+            </div>
+        `;
+        
+        fetch('/api/trades/recent?limit=10')
+            .then(response => response.json())
+            .then(data => {
+                displayRecentTrades(data.trades || []);
+            })
+            .catch(error => {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                        <p>Erro ao carregar trades</p>
+                    </div>
+                `;
+                console.error('Erro ao carregar trades:', error);
+            });
+    }
+
+    // Display recent trades
+    function displayRecentTrades(trades) {
+        const container = document.getElementById('recentTradesContainer');
+        
+        if (trades.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-chart-line fa-2x mb-3"></i>
+                    <p>Nenhum trade encontrado</p>
+                </div>
+            `;
+            return;
+        }
+        
+        const tradesHTML = trades.map(trade => `
+            <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-secondary">
+                <div>
+                    <strong>${trade.symbol}</strong>
+                    <span class="badge ${trade.side === 'BUY' ? 'bg-success' : 'bg-danger'} ms-2">
+                        ${trade.side}
+                    </span>
+                </div>
+                <div class="text-end">
+                    <div class="fw-bold ${trade.pnl >= 0 ? 'text-success' : 'text-danger'}">
+                        ${formatCurrency(trade.pnl)}
+                    </div>
+                    <small class="text-muted">${formatDateTime(trade.timestamp)}</small>
+                </div>
+            </div>
+        `).join('');
+        
+        container.innerHTML = tradesHTML;
+    }
+
+    // Load market overview
+    function loadMarketOverview() {
+        fetch('/api/market/overview')
+            .then(response => response.json())
+            .then(data => {
+                displayMarketOverview(data);
+            })
+            .catch(error => {
+                document.getElementById('marketOverview').innerHTML = `
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                        <p>Erro ao carregar dados</p>
+                    </div>
+                `;
+                console.error('Erro ao carregar visão geral do mercado:', error);
+            });
+    }
+
+    // Display market overview
+    function displayMarketOverview(data) {
+        const container = document.getElementById('marketOverview');
+        
+        const overviewHTML = `
+            <div class="row text-center">
+                <div class="col-4">
+                    <div class="text-success">
+                        <i class="fas fa-arrow-up fa-2x"></i>
+                        <div class="mt-1">
+                            <strong>${data.bullish || 0}</strong>
+                            <div class="small text-muted">Alta</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="text-warning">
+                        <i class="fas fa-minus fa-2x"></i>
+                        <div class="mt-1">
+                            <strong>${data.neutral || 0}</strong>
+                            <div class="small text-muted">Neutro</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="text-danger">
+                        <i class="fas fa-arrow-down fa-2x"></i>
+                        <div class="mt-1">
+                            <strong>${data.bearish || 0}</strong>
+                            <div class="small text-muted">Baixa</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <hr class="my-3">
+            <div class="row">
+                <div class="col-6">
+                    <div class="text-center">
+                        <div class="h5 text-info">${data.volume_24h || '0'}</div>
+                        <div class="small text-muted">Volume 24h</div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="text-center">
+                        <div class="h5 text-warning">${data.dominance || '0%'}</div>
+                        <div class="small text-muted">Dominância BTC</div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        container.innerHTML = overviewHTML;
+    }
+
+    // Load performance data
+    function loadPerformanceData() {
+        fetch('/api/analytics/performance?period=24h')
+            .then(response => response.json())
+            .then(data => {
+                updatePerformanceChart(data.performance || []);
+            })
+            .catch(error => {
+                console.error('Erro ao carregar dados de performance:', error);
+            });
+    }
+
+    // Update performance chart
+    function updatePerformanceChart(performanceData) {
+        if (!performanceChart) return;
+        
+        const labels = performanceData.map(point => 
+            new Date(point.timestamp).toLocaleTimeString('pt-BR', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            })
+        );
+        const values = performanceData.map(point => point.balance);
+        
+        performanceChart.data.labels = labels;
+        performanceChart.data.datasets[0].data = values;
+        performanceChart.update();
+    }
+
+    // Update system resources
+    function updateSystemResources() {
+        fetch('/api/system/resources')
+            .then(response => response.json())
+            .then(data => {
+                // Update CPU
+                document.getElementById('cpuUsage').textContent = `${data.cpu_percent || 0}%`;
+                document.getElementById('cpuProgress').style.width = `${data.cpu_percent || 0}%`;
+                
+                // Update Memory
+                document.getElementById('memoryUsage').textContent = `${data.memory_percent || 0}%`;
+                document.getElementById('memoryProgress').style.width = `${data.memory_percent || 0}%`;
+                
+                // Update API connections
+                document.getElementById('apiConnections').textContent = data.api_connections || 0;
+                const apiUsage = Math.min((data.api_connections || 0) / 10 * 100, 100);
+                document.getElementById('apiProgress').style.width = `${apiUsage}%`;
+            })
+            .catch(error => {
+                console.error('Erro ao carregar recursos do sistema:', error);
+            });
+    }
+
+    // Real-time updates
+    function updateTradingData(data) {
+        // Update overview if new trade
+        if (data.type === 'new_trade') {
+            loadDashboardData();
+        }
+        
+        // Update last update time
+        document.getElementById('lastUpdate').textContent = formatDateTime(new Date().toISOString());
+    }
+
+    // Refresh page data
+    function refreshPageData() {
+        loadDashboardData();
+    }
+
+    // Socket events specific to dashboard
+    socket.on('market_update', function(data) {
+        displayMarketOverview(data);
+    });
+
+    socket.on('performance_update', function(data) {
+        updatePerformanceChart(data.performance || []);
+    });
+</script>
+{% endblock %}
