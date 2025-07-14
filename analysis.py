@@ -10,7 +10,7 @@ import numpy as np # Importado para cálculos numéricos
 # =============================================================================
 
 # --- Parâmetros de ENTRADA (Momentum) ---
-PRICE_CHANGE_THRESHOLD = 2.0 
+PRICE_CHANGE_THRESHOLD = 1.0 
 PRICE_CHANGE_PERIOD_MINUTES = 5
 VOLUME_MULTIPLIER_THRESHOLD = 5.0
 VOLUME_AVERAGE_PERIOD_MINUTES = 30
