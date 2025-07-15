@@ -108,9 +108,9 @@ EMA_WEIGHT = 0.25
 # CONFIGURAÇÕES DE TIMEFRAMES
 # =============================================================================
 
-PRIMARY_TIMEFRAME = '1m'      # Timeframe principal para análise (padrão = 5m)
-SECONDARY_TIMEFRAME = '5m'   # Timeframe secundário (padrão = 15m)
-CONFIRMATION_TIMEFRAME = '15m' # Timeframe para confirmação (padrão = 1h)
+PRIMARY_TIMEFRAME = '5m'      # Timeframe principal para análise (padrão = 5m)
+SECONDARY_TIMEFRAME = '15m'   # Timeframe secundário (padrão = 15m)
+CONFIRMATION_TIMEFRAME = '1h' # Timeframe para confirmação (padrão = 1h)
 
 # Intervalos de atualização
 UPDATE_INTERVAL = 30         # Segundos entre atualizações (padrão = 30)

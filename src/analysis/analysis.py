@@ -517,21 +517,33 @@ def find_integrated_momentum_signal(market_data: pd.DataFrame) -> str:
     # 1. Análise técnica integrada usando os 4 indicadores
     integrated_analysis = calculate_integrated_signal(market_data)
     
-    if integrated_analysis['signal'] == 'NEUTRO':
-        # 2. Se não há sinal claro nos indicadores, usar análise de momentum tradicional
-        return find_momentum_signal_legacy(market_data)
+    # 2. Se há sinal claro nos indicadores técnicos, confirmar com momentum
+    if integrated_analysis['signal'] != 'NEUTRO':
+        momentum_confirmation = analyze_momentum_confirmation(market_data, integrated_analysis['signal'])
+        
+        if momentum_confirmation:
+            print(f"✅ SINAL INTEGRADO ({integrated_analysis['signal']}): "
+                  f"Confiança={integrated_analysis['confidence']:.2f} | "
+                  f"{integrated_analysis['description']}")
+            return integrated_analysis['signal']
+        else:
+            # Se confiança for muito alta, aceitar mesmo sem confirmação de momentum
+            if integrated_analysis['confidence'] >= 0.8:
+                print(f"✅ SINAL INTEGRADO DE ALTA CONFIANÇA ({integrated_analysis['signal']}): "
+                      f"Confiança={integrated_analysis['confidence']:.2f} | "
+                      f"{integrated_analysis['description']}")
+                return integrated_analysis['signal']
+            else:
+                print(f"⚠️  Sinal técnico {integrated_analysis['signal']} rejeitado por falta de confirmação de momentum "
+                      f"(confiança: {integrated_analysis['confidence']:.2f})")
     
-    # 3. Confirmar sinal técnico com momentum e volume
-    momentum_confirmation = analyze_momentum_confirmation(market_data, integrated_analysis['signal'])
+    # 3. Se não há sinal claro nos indicadores técnicos OU sinal foi rejeitado, usar análise de momentum tradicional
+    momentum_signal = find_momentum_signal_legacy(market_data)
+    if momentum_signal != 'AGUARDAR':
+        print(f"📈 FALLBACK: Usando sinal de momentum tradicional - {momentum_signal}")
+        return momentum_signal
     
-    if momentum_confirmation:
-        print(f"✅ SINAL INTEGRADO ({integrated_analysis['signal']}): "
-              f"Confiança={integrated_analysis['confidence']:.2f} | "
-              f"{integrated_analysis['description']}")
-        return integrated_analysis['signal']
-    else:
-        print(f"⚠️  Sinal técnico {integrated_analysis['signal']} rejeitado por falta de confirmação de momentum")
-        return 'AGUARDAR'
+    return 'AGUARDAR'
 
 def find_momentum_signal_legacy(market_data: pd.DataFrame) -> str:
     """
@@ -556,8 +568,8 @@ def find_momentum_signal_legacy(market_data: pd.DataFrame) -> str:
     previous_candles = market_data.iloc[-1 - VOLUME_AVERAGE_PERIOD_MINUTES:-1]
     average_volume = previous_candles['volume'].mean()
     
-    if average_volume == 0:
-        volume_multiplier = float('inf')
+    if average_volume == 0 or np.isnan(average_volume):
+        volume_multiplier = 999.99  # Valor alto mas finito para representar volume muito acima da média
     else:
         volume_multiplier = current_volume / average_volume
 
@@ -608,22 +620,35 @@ def analyze_momentum_confirmation(market_data: pd.DataFrame, signal: str) -> boo
     
     price_change_pct = ((current_price / price_N_periods_ago) - 1) * 100
     
-    # Calcular volume
+    # Calcular volume com tratamento para casos extremos
     previous_candles = market_data.iloc[-1 - VOLUME_AVERAGE_PERIOD_MINUTES:-1]
     average_volume = previous_candles['volume'].mean()
-    volume_multiplier = current_volume / average_volume if average_volume > 0 else 0
+    
+    if average_volume == 0 or np.isnan(average_volume):
+        # Se volume médio é zero, aceitar qualquer volume atual > 0 como positivo
+        volume_multiplier = 999.99 if current_volume > 0 else 0
+    else:
+        volume_multiplier = current_volume / average_volume
+    
+    print(f"🔍 CONFIRMAÇÃO DE MOMENTUM: Sinal={signal}, Preço={price_change_pct:.2f}%, Volume={volume_multiplier:.2f}x")
     
     # Confirmação para sinais de COMPRA
     if signal == 'COMPRAR':
         momentum_ok = price_change_pct >= PRICE_CHANGE_THRESHOLD * 0.5  # 50% do threshold
         volume_ok = volume_multiplier >= VOLUME_MULTIPLIER_THRESHOLD * 0.7  # 70% do threshold
-        return momentum_ok and volume_ok
+        confirmation = momentum_ok and volume_ok
+        print(f"   ➤ COMPRA: Momentum OK={momentum_ok} ({price_change_pct:.2f}% >= {PRICE_CHANGE_THRESHOLD * 0.5:.2f}%), "
+              f"Volume OK={volume_ok} ({volume_multiplier:.2f}x >= {VOLUME_MULTIPLIER_THRESHOLD * 0.7:.2f}x)")
+        return confirmation
     
     # Confirmação para sinais de VENDA
     elif signal == 'VENDER':
         momentum_ok = price_change_pct <= -PRICE_CHANGE_THRESHOLD * 0.5  # 50% do threshold
         volume_ok = volume_multiplier >= VOLUME_MULTIPLIER_THRESHOLD * 0.7  # 70% do threshold
-        return momentum_ok and volume_ok
+        confirmation = momentum_ok and volume_ok
+        print(f"   ➤ VENDA: Momentum OK={momentum_ok} ({price_change_pct:.2f}% <= {-PRICE_CHANGE_THRESHOLD * 0.5:.2f}%), "
+              f"Volume OK={volume_ok} ({volume_multiplier:.2f}x >= {VOLUME_MULTIPLIER_THRESHOLD * 0.7:.2f}x)")
+        return confirmation
     
     return False
 
@@ -863,8 +888,8 @@ def generate_technical_analysis_report(market_data: pd.DataFrame, symbol: str = 
     # Análise integrada
     integrated_analysis = calculate_integrated_signal(market_data)
     
-    # Análise de momentum tradicional para comparação
-    momentum_signal = find_momentum_signal_legacy(market_data)
+    # Análise de momentum integrada para comparação
+    momentum_signal = find_integrated_momentum_signal(market_data)
     
     # Padrões de reversão
     reversal_patterns = detect_reversal_patterns(market_data)
