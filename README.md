@@ -319,14 +319,3 @@ python run.py web
 # 4. Iniciar bot via interface
 # Clicar em "Iniciar Bot" no dashboard
 ```
-
-## 📞 **Suporte**
-
-- 📧 **Email**: david.leati@example.com
-- 💬 **Discord**: CryptoAI Community
-- 📖 **Wiki**: Documentação completa
-- 🐛 **Issues**: GitHub Issues
-
----
-
-**🎯 CryptoAI Trading Bot - Transformando dados em oportunidades de trading!**
