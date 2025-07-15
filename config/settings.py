@@ -114,7 +114,7 @@ CONFIRMATION_TIMEFRAME = '1h' # Timeframe para confirmação (padrão = 1h)
 
 # Intervalos de atualização
 UPDATE_INTERVAL = 30         # Segundos entre atualizações (padrão = 30)
-HEARTBEAT_INTERVAL = 60      # Segundos entre heartbeats (padr]ao = 60)
+HEARTBEAT_INTERVAL = 60      # Segundos entre heartbeats (padrão = 60)
 
 # =============================================================================
 # CONFIGURAÇÕES DA EXCHANGE (BINANCE)

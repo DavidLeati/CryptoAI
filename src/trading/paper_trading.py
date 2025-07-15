@@ -112,14 +112,14 @@ class PaperTradingSimulator:
             
             # Log detalhado da abertura
             if TRADING_CONFIG.get('REALISTIC_FEES', False):
-                self.logger.info(f"Posição {side_normalized.upper()} aberta para {symbol} - "
-                               f"Preço Original: ${price:.4f}, Preço Ajustado: ${adjusted_entry_price:.4f}, "
-                               f"Valor: ${trade_value_usd:.2f}, Taxa: ${entry_fee_usd:.4f}, "
-                               f"Alavancagem: {leverage}x")
+                self.logger.info(f"Posição {side_normalized.upper()} aberta para {symbol}")
+                self.logger.info(f"   Preço Original: ${price:.4f}, Preço Ajustado: ${adjusted_entry_price:.4f}")
+                self.logger.info(f"   Valor: ${trade_value_usd:.2f}, Taxa: ${entry_fee_usd:.4f}")
+                self.logger.info(f"   Alavancagem: {leverage}x")
             else:
-                self.logger.info(f"Posição {side_normalized.upper()} aberta para {symbol} - "
-                               f"Preço: ${price:.4f}, Valor: ${trade_value_usd:.2f}, "
-                               f"Alavancagem: {leverage}x")
+                self.logger.info(f"Posição {side_normalized.upper()} aberta para {symbol}")
+                self.logger.info(f"   Preço: ${price:.4f}, Valor: ${trade_value_usd:.2f}")
+                self.logger.info(f"   Alavancagem: {leverage}x")
             
             # Registrar posição no gerenciador de risco
             risk_manager.open_position(symbol, side_normalized, adjusted_entry_price, trade_value_usd, leverage)
