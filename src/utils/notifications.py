@@ -4,8 +4,8 @@
 import smtplib
 import requests
 import json
-from email.mime.text import MimeText
-from email.mime.multipart import MimeMultipart
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from typing import Dict, List, Optional
 import sys
 from pathlib import Path
@@ -45,7 +45,7 @@ class NotificationManager:
         
         try:
             # Configurar email
-            msg = MimeMultipart()
+            msg = MIMEMultipart()
             msg['From'] = EMAIL_USER
             msg['To'] = to_email or EMAIL_USER
             msg['Subject'] = f"[CryptoAI] {subject}"
@@ -62,7 +62,7 @@ Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 Este é um email automático do sistema de trading.
             """
             
-            msg.attach(MimeText(body, 'plain'))
+            msg.attach(MIMEText(body, 'plain'))
             
             # Enviar email
             server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)

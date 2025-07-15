@@ -1,0 +1,11 @@
+2025-07-15 16:00:30,968 - cryptoai.paper_trading - INFO - Posição SHORT aberta para ALPHA/USDT:USDT - Preço Original: $0.0154, Preço Ajustado: $0.0154, Valor: $5.00, Taxa: $0.00, Alavancagem: 50x
+2025-07-15 16:02:36,229 - cryptoai.paper_trading - INFO - Posição LONG aberta para KSM/USDT:USDT - Preço Original: $14.9470, Preço Ajustado: $14.9500, Valor: $5.00, Taxa: $0.00, Alavancagem: 50x
+2025-07-15 16:02:38,359 - cryptoai.paper_trading - INFO - Posição LONG aberta para CHR/USDT:USDT - Preço Original: $0.0951, Preço Ajustado: $0.0951, Valor: $5.00, Taxa: $0.00, Alavancagem: 50x
+2025-07-15 16:02:44,531 - cryptoai.paper_trading - INFO - Posição LONG aberta para FIL/USDT:USDT - Preço Original: $2.6030, Preço Ajustado: $2.6035, Valor: $5.00, Taxa: $0.00, Alavancagem: 50x
+2025-07-15 16:02:49,427 - cryptoai.paper_trading - INFO - Posição LONG aberta para LRC/USDT:USDT - Preço Original: $0.0823, Preço Ajustado: $0.0823, Valor: $5.00, Taxa: $0.00, Alavancagem: 50x
+2025-07-15 16:02:55,246 - cryptoai.paper_trading - INFO - Posição LONG aberta para SPELL/USDT:USDT - Preço Original: $0.0005, Preço Ajustado: $0.0005, Valor: $5.00, Taxa: $0.00, Alavancagem: 50x
+2025-07-15 16:03:56,861 - cryptoai.paper_trading - INFO - Posição SHORT aberta para CRV/USDT:USDT - Preço Original: $0.7240, Preço Ajustado: $0.7239, Valor: $5.00, Taxa: $0.00, Alavancagem: 50x
+2025-07-15 16:04:02,415 - cryptoai.paper_trading - INFO - Posição SHORT fechada para CRV/USDT:USDT - PREJUÍZO
+2025-07-15 16:04:02,415 - cryptoai.paper_trading - INFO -    P&L Bruto: $-0.10 (-2.00%)
+2025-07-15 16:04:02,416 - cryptoai.paper_trading - INFO -    Tarifas: $0.01 (Entrada: $0.00 + Saída: $0.00)
+2025-07-15 16:04:02,416 - cryptoai.paper_trading - INFO -    P&L Líquido: $-0.11 (-2.14%)

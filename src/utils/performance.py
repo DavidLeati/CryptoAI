@@ -144,6 +144,41 @@ class PerformanceMonitor:
             total_duration = metrics["avg_duration"] * (metrics["total_trades"] - 1) + duration_minutes
             metrics["avg_duration"] = total_duration / metrics["total_trades"]
     
+    def record_trade_start(self, symbol: str, side: str, price: float, value: float) -> None:
+        """Registra o início de um trade."""
+        self.record_metric("trade_start", value, "trading", symbol, {
+            "side": side,
+            "price": price
+        })
+        
+        # Atualizar métricas de trading
+        with self._lock:
+            if symbol not in self.trading_metrics:
+                self.trading_metrics[symbol] = {
+                    "total_trades": 0,
+                    "winning_trades": 0,
+                    "total_pnl": 0.0,
+                    "best_trade": 0.0,
+                    "worst_trade": 0.0,
+                    "avg_duration": 0.0
+                }
+            self.trading_metrics[symbol]["total_trades"] += 1
+
+    def record_trade_end(self, symbol: str, exit_price: float, pnl: float) -> None:
+        """Registra o fim de um trade."""
+        self.record_metric("trade_end", pnl, "trading", symbol, {
+            "exit_price": exit_price
+        })
+        
+        # Atualizar métricas de trading
+        with self._lock:
+            if symbol in self.trading_metrics:
+                metrics = self.trading_metrics[symbol]
+                metrics["total_pnl"] += pnl
+                
+                if pnl > 0:
+                    metrics["winning_trades"] += 1
+
     def record_analysis_time(self, symbol: str, analysis_time_ms: float) -> None:
         """Registra tempo de análise."""
         self.record_metric("analysis_time", analysis_time_ms, "performance", symbol)

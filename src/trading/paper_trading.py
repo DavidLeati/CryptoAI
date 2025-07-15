@@ -40,7 +40,7 @@ class PaperTradingSimulator:
         self.logger = get_logger('paper_trading')
         
     def open_position(self, symbol, side, price, trade_value_usd=None, leverage=None):
-        """Simula abertura de posição."""
+        """Simula abertura de posição com tarifas realistas."""
         try:
             # Usar configurações padrão se não especificado
             if trade_value_usd is None:
@@ -67,36 +67,65 @@ class PaperTradingSimulator:
                 self.logger.error(f"Side inválido: {side}. Use 'long'/'BUY' ou 'short'/'SELL'")
                 return False
             
-            # Calcular quantidade
-            quantity = (trade_value_usd * leverage) / price
+            # Calcular tarifas de entrada (se ativadas)
+            entry_fee_usd = 0.0
+            adjusted_entry_price = price
             
-            # Verificar se tem saldo suficiente
-            required_margin = trade_value_usd
+            if TRADING_CONFIG.get('REALISTIC_FEES', False):
+                entry_fee_rate = TRADING_CONFIG.get('ENTRY_FEE', 0.0005)
+                entry_fee_usd = trade_value_usd * entry_fee_rate
+                
+                # Ajustar preço de entrada considerando slippage
+                slippage_rate = TRADING_CONFIG.get('SLIPPAGE', 0.0002)
+                if side_normalized == 'long':
+                    # Para compra, o slippage aumenta o preço
+                    adjusted_entry_price = price * (1 + slippage_rate)
+                else:
+                    # Para venda, o slippage diminui o preço
+                    adjusted_entry_price = price * (1 - slippage_rate)
+            
+            # Calcular quantidade com preço ajustado
+            quantity = (trade_value_usd * leverage) / adjusted_entry_price
+            
+            # Verificar se tem saldo suficiente (incluindo tarifas)
+            required_margin = trade_value_usd + entry_fee_usd
             if required_margin > self.current_balance:
-                self.logger.error(f"Saldo insuficiente para {symbol}. Necessário: ${required_margin:.2f}, Disponível: ${self.current_balance:.2f}")
+                self.logger.error(f"Saldo insuficiente para {symbol}. Necessário: ${required_margin:.2f} (${trade_value_usd:.2f} + ${entry_fee_usd:.2f} taxa), Disponível: ${self.current_balance:.2f}")
                 return False
             
             # Abrir posição
             self.positions[symbol] = {
                 'side': side_normalized,
-                'entry_price': price,
+                'entry_price': adjusted_entry_price,
+                'original_price': price,  # Preço original sem slippage
                 'quantity': quantity,
                 'trade_value': trade_value_usd,
                 'leverage': leverage,
                 'entry_time': datetime.now(),
-                'margin_used': required_margin
+                'margin_used': trade_value_usd,  # Margem sem incluir taxa
+                'entry_fee': entry_fee_usd,     # Taxa paga na entrada
+                'total_entry_cost': required_margin  # Custo total da entrada
             }
             
-            # Reduzir saldo disponível (margem)
+            # Reduzir saldo disponível (margem + taxa)
             self.current_balance -= required_margin
             
-            self.logger.info(f"Posição {side_normalized.upper()} aberta para {symbol} - Preço: ${price:.4f}, Valor: ${trade_value_usd:.2f}, Alavancagem: {leverage}x")
+            # Log detalhado da abertura
+            if TRADING_CONFIG.get('REALISTIC_FEES', False):
+                self.logger.info(f"Posição {side_normalized.upper()} aberta para {symbol} - "
+                               f"Preço Original: ${price:.4f}, Preço Ajustado: ${adjusted_entry_price:.4f}, "
+                               f"Valor: ${trade_value_usd:.2f}, Taxa: ${entry_fee_usd:.4f}, "
+                               f"Alavancagem: {leverage}x")
+            else:
+                self.logger.info(f"Posição {side_normalized.upper()} aberta para {symbol} - "
+                               f"Preço: ${price:.4f}, Valor: ${trade_value_usd:.2f}, "
+                               f"Alavancagem: {leverage}x")
             
             # Registrar posição no gerenciador de risco
-            risk_manager.add_position(symbol, side_normalized, trade_value_usd)
+            risk_manager.open_position(symbol, side_normalized, adjusted_entry_price, trade_value_usd, leverage)
             
             # Registrar no monitor de performance
-            performance_monitor.record_trade_start(symbol, side_normalized, price, trade_value_usd)
+            performance_monitor.record_trade_start(symbol, side_normalized, adjusted_entry_price, trade_value_usd)
             
             # Salvar resultados em tempo real
             self.auto_save_results()
@@ -108,7 +137,7 @@ class PaperTradingSimulator:
             return False
     
     def close_position(self, symbol, current_price):
-        """Simula fechamento de posição e calcula P&L."""
+        """Simula fechamento de posição com tarifas realistas e calcula P&L."""
         try:
             if symbol not in self.positions:
                 self.logger.warning(f"Nenhuma posição encontrada para {symbol}")
@@ -116,64 +145,105 @@ class PaperTradingSimulator:
             
             position = self.positions[symbol]
             entry_price = position['entry_price']
+            original_entry_price = position.get('original_price', entry_price)
             quantity = position['quantity']
             side = position['side']
             trade_value = position['trade_value']
             leverage = position['leverage']
-            margin_used = position['margin_used']
+            margin_used = position.get('margin_used', trade_value)
+            entry_fee = position.get('entry_fee', 0.0)
             entry_time = position['entry_time']
             
-            # Calcular P&L
+            # Calcular tarifas de saída e preço ajustado
+            exit_fee_usd = 0.0
+            adjusted_exit_price = current_price
+            
+            if TRADING_CONFIG.get('REALISTIC_FEES', False):
+                exit_fee_rate = TRADING_CONFIG.get('EXIT_FEE', 0.0005)
+                exit_fee_usd = trade_value * exit_fee_rate
+                
+                # Ajustar preço de saída considerando slippage
+                slippage_rate = TRADING_CONFIG.get('SLIPPAGE', 0.0002)
+                if side == 'long':
+                    # Para venda de posição long, o slippage diminui o preço
+                    adjusted_exit_price = current_price * (1 - slippage_rate)
+                else:
+                    # Para compra de posição short, o slippage aumenta o preço
+                    adjusted_exit_price = current_price * (1 + slippage_rate)
+            
+            # Calcular P&L com preços ajustados
             if side == 'long':
-                price_change_pct = ((current_price - entry_price) / entry_price) * 100
+                price_change_pct = ((adjusted_exit_price - entry_price) / entry_price) * 100
                 pnl_pct = price_change_pct * leverage
             else:  # short
-                price_change_pct = ((entry_price - current_price) / entry_price) * 100
+                price_change_pct = ((entry_price - adjusted_exit_price) / entry_price) * 100
                 pnl_pct = price_change_pct * leverage
             
-            pnl_usd = (pnl_pct / 100) * trade_value
+            # P&L bruto em USD
+            pnl_gross_usd = (pnl_pct / 100) * trade_value
             
-            # Devolver margem + P&L
-            self.current_balance += margin_used + pnl_usd
+            # P&L líquido (descontando tarifas de entrada e saída)
+            total_fees = entry_fee + exit_fee_usd
+            pnl_net_usd = pnl_gross_usd - total_fees
+            
+            # Devolver margem + P&L líquido
+            self.current_balance += margin_used + pnl_net_usd
             
             # Estatísticas
             duration = datetime.now() - entry_time
             self.total_trades += 1
             
-            if pnl_usd > 0:
+            # Usar P&L líquido para estatísticas
+            if pnl_net_usd > 0:
                 self.winning_trades += 1
-                self.total_profit += pnl_usd
+                self.total_profit += pnl_net_usd
                 result_text = "LUCRO"
             else:
                 self.losing_trades += 1
-                self.total_loss += abs(pnl_usd)
+                self.total_loss += abs(pnl_net_usd)
                 result_text = "PREJUÍZO"
+            
+            # Calcular percentual líquido
+            pnl_net_pct = (pnl_net_usd / trade_value) * 100
             
             # Registrar trade no histórico
             trade_record = {
                 'symbol': symbol,
                 'side': side,
                 'entry_price': entry_price,
-                'exit_price': current_price,
+                'original_entry_price': original_entry_price,
+                'exit_price': adjusted_exit_price,
+                'original_exit_price': current_price,
                 'quantity': quantity,
                 'trade_value': trade_value,
                 'leverage': leverage,
-                'pnl_usd': pnl_usd,
-                'pnl_pct': pnl_pct,
+                'pnl_gross_usd': pnl_gross_usd,
+                'pnl_net_usd': pnl_net_usd,
+                'pnl_gross_pct': pnl_pct,
+                'pnl_net_pct': pnl_net_pct,
+                'entry_fee': entry_fee,
+                'exit_fee': exit_fee_usd,
+                'total_fees': total_fees,
                 'duration_minutes': duration.total_seconds() / 60,
                 'entry_time': entry_time.isoformat(),
                 'exit_time': datetime.now().isoformat()
             }
             self.trade_history.append(trade_record)
             
-            # Log do fechamento
-            self.logger.info(f"Posição {side.upper()} fechada para {symbol} - {result_text} - P&L: ${pnl_usd:+.2f} ({pnl_pct:+.2f}%)")
+            # Log detalhado do fechamento
+            if TRADING_CONFIG.get('REALISTIC_FEES', False):
+                self.logger.info(f"Posição {side.upper()} fechada para {symbol} - {result_text}")
+                self.logger.info(f"   P&L Bruto: ${pnl_gross_usd:+.2f} ({pnl_pct:+.2f}%)")
+                self.logger.info(f"   Tarifas: ${total_fees:.2f} (Entrada: ${entry_fee:.2f} + Saída: ${exit_fee_usd:.2f})")
+                self.logger.info(f"   P&L Líquido: ${pnl_net_usd:+.2f} ({pnl_net_pct:+.2f}%)")
+            else:
+                self.logger.info(f"Posição {side.upper()} fechada para {symbol} - {result_text} - P&L: ${pnl_net_usd:+.2f} ({pnl_net_pct:+.2f}%)")
             
             # Registrar fechamento no gerenciador de risco
-            risk_manager.remove_position(symbol)
+            risk_manager.close_position(symbol, adjusted_exit_price)
             
-            # Registrar no monitor de performance
-            performance_monitor.record_trade_end(symbol, current_price, pnl_usd)
+            # Registrar no monitor de performance (usar P&L líquido)
+            performance_monitor.record_trade_end(symbol, adjusted_exit_price, pnl_net_usd)
             
             # Remover posição
             del self.positions[symbol]
@@ -199,7 +269,7 @@ class PaperTradingSimulator:
         return symbol in self.positions
     
     def _print_summary(self):
-        """Imprime resumo das estatísticas."""
+        """Imprime resumo das estatísticas incluindo informações de tarifas."""
         if self.total_trades == 0:
             return
             
@@ -207,14 +277,39 @@ class PaperTradingSimulator:
         total_pnl = self.current_balance - self.initial_balance
         roi = (total_pnl / self.initial_balance) * 100
         
+        # Calcular total de tarifas pagas
+        total_fees_paid = 0.0
+        total_gross_profit = 0.0
+        total_gross_loss = 0.0
+        
+        for trade in self.trade_history:
+            total_fees_paid += trade.get('total_fees', 0.0)
+            gross_pnl = trade.get('pnl_gross_usd', trade.get('pnl_net_usd', 0.0))
+            if gross_pnl > 0:
+                total_gross_profit += gross_pnl
+            else:
+                total_gross_loss += abs(gross_pnl)
+        
         print(f"\n📊 [RESUMO DA SIMULAÇÃO]")
         print(f"   💰 Saldo inicial: ${self.initial_balance:.2f}")
         print(f"   💳 Saldo atual: ${self.current_balance:.2f}")
         print(f"   📈 P&L total: ${total_pnl:+.2f} ({roi:+.2f}%)")
         print(f"   🎯 Trades: {self.total_trades} | Vitórias: {self.winning_trades} | Derrotas: {self.losing_trades}")
         print(f"   🏆 Taxa de acerto: {win_rate:.1f}%")
-        print(f"   🟢 Lucro total: ${self.total_profit:.2f}")
-        print(f"   🔴 Prejuízo total: ${self.total_loss:.2f}\n")
+        print(f"   🟢 Lucro total (líquido): ${self.total_profit:.2f}")
+        print(f"   🔴 Prejuízo total (líquido): ${self.total_loss:.2f}")
+        
+        # Mostrar informações de tarifas se ativadas
+        if TRADING_CONFIG.get('REALISTIC_FEES', False) and total_fees_paid > 0:
+            print(f"   💸 Total em tarifas: ${total_fees_paid:.2f}")
+            print(f"   📊 P&L bruto: ${total_gross_profit - total_gross_loss:+.2f}")
+            print(f"   🧮 Impacto das tarifas: ${-total_fees_paid:.2f} ({-total_fees_paid/self.initial_balance*100:.2f}%)")
+            
+            # Taxa média por trade
+            avg_fee_per_trade = total_fees_paid / self.total_trades
+            print(f"   📋 Taxa média por trade: ${avg_fee_per_trade:.2f}")
+        
+        print()
     
     def save_results(self, filename=None):
         """Salva resultados em arquivo JSON."""
@@ -236,18 +331,33 @@ class PaperTradingSimulator:
                     pos_copy['entry_time'] = pos_copy['entry_time'].isoformat()
                 open_positions_serializable[symbol] = pos_copy
             
+            # Calcular estatísticas detalhadas incluindo tarifas
+            total_fees_paid = sum(trade.get('total_fees', 0.0) for trade in self.trade_history)
+            total_gross_pnl = sum(trade.get('pnl_gross_usd', trade.get('pnl_net_usd', 0.0)) for trade in self.trade_history)
+            average_trade_duration = sum(trade.get('duration_minutes', 0) for trade in self.trade_history) / len(self.trade_history) if self.trade_history else 0
+            
             results = {
                 'summary': {
                     'initial_balance': self.initial_balance,
                     'final_balance': self.current_balance,
-                    'total_pnl': self.current_balance - self.initial_balance,
-                    'roi_percent': ((self.current_balance - self.initial_balance) / self.initial_balance) * 100,
+                    'total_pnl_net': self.current_balance - self.initial_balance,
+                    'total_pnl_gross': total_gross_pnl,
+                    'total_fees_paid': total_fees_paid,
+                    'roi_percent_net': ((self.current_balance - self.initial_balance) / self.initial_balance) * 100,
+                    'roi_percent_gross': (total_gross_pnl / self.initial_balance) * 100,
                     'total_trades': self.total_trades,
                     'winning_trades': self.winning_trades,
                     'losing_trades': self.losing_trades,
                     'win_rate': (self.winning_trades / self.total_trades * 100) if self.total_trades > 0 else 0,
-                    'total_profit': self.total_profit,
-                    'total_loss': self.total_loss
+                    'total_profit_net': self.total_profit,
+                    'total_loss_net': self.total_loss,
+                    'average_trade_duration_minutes': average_trade_duration,
+                    'fee_impact_percent': (total_fees_paid / self.initial_balance * 100) if self.initial_balance > 0 else 0,
+                    'average_fee_per_trade': total_fees_paid / self.total_trades if self.total_trades > 0 else 0,
+                    'realistic_fees_enabled': TRADING_CONFIG.get('REALISTIC_FEES', False),
+                    'trading_fee_rate': TRADING_CONFIG.get('TRADING_FEE', 0.0),
+                    'entry_fee_rate': TRADING_CONFIG.get('ENTRY_FEE', 0.0),
+                    'exit_fee_rate': TRADING_CONFIG.get('EXIT_FEE', 0.0)
                 },
                 'trade_history': self.trade_history,
                 'open_positions': open_positions_serializable,

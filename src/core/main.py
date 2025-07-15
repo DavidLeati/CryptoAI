@@ -13,7 +13,7 @@ sys.path.insert(0, str(config_path))
 
 from settings import (
     PAPER_TRADING_MODE, TRADE_VALUE_USD, STOP_LOSS_PCT, TAKE_PROFIT_PCT,
-    LEVERAGE_LEVEL, LISTA_DE_ATIVOS, UPDATE_INTERVAL, MAX_CONCURRENT_TRADES,
+    LEVERAGE_LEVEL, LISTA_DE_ATIVOS, INITIAL_BALANCE, UPDATE_INTERVAL, MAX_CONCURRENT_TRADES,
     PRIMARY_TIMEFRAME, RSI_PERIOD, MACD_FAST, MACD_SLOW, BB_PERIOD
 )
 
@@ -130,7 +130,7 @@ def main():
     
     if PAPER_TRADING_MODE:
         print("💡 Modo simulação ativo - testando capacidade de geração de lucro sem usar dinheiro real")
-        print("📊 Saldo inicial da simulação: $1000.00")
+        print(f"📊 Saldo inicial da simulação: ${INITIAL_BALANCE}")
     
     # 1. Inicializa a conexão única com a exchange
     client = create_exchange_connection()

@@ -9,8 +9,8 @@ from typing import List, Dict, Any
 # =============================================================================
 
 # Versão do sistema
-VERSION = "1.0.0"
-APP_NAME = "CryptoAI Trading Bot"
+VERSION = "0.0.1"
+APP_NAME = "CryptoAI"
 AUTHOR = "David Leati"
 
 # Modo de operação
@@ -18,18 +18,36 @@ PAPER_TRADING_MODE = True  # True = Simulação, False = Trading Real
 DEBUG_MODE = True
 
 # =============================================================================
+# CONFIGURAÇÕES DE TARIFAS E CUSTOS
+# =============================================================================
+
+# Tarifas da Binance (Paper Trading Realista)
+BINANCE_MAKER_FEE = 0.0005  # 0.05% para maker orders
+BINANCE_TAKER_FEE = 0.0005  # 0.05% para taker orders (mais comum em bots rápidos)
+DEFAULT_TRADING_FEE = BINANCE_TAKER_FEE  # Usar taker fee como padrão
+
+# Configurações de slippage
+ESTIMATED_SLIPPAGE = 0.0002  # 0.02% slippage estimado
+TOTAL_ENTRY_COST = DEFAULT_TRADING_FEE + ESTIMATED_SLIPPAGE  # 0.07% total na entrada
+TOTAL_EXIT_COST = DEFAULT_TRADING_FEE + ESTIMATED_SLIPPAGE   # 0.07% total na saída
+
+# Configurações de spread
+ESTIMATED_SPREAD = 0.0001  # 0.01% spread médio estimado
+
+# =============================================================================
 # CONFIGURAÇÕES DE TRADING
 # =============================================================================
 
 # Parâmetros de trading
-TRADE_VALUE_USD = 50.0      # Valor em USD por trade
-STOP_LOSS_PCT = 2.0         # Stop loss em percentual
-TAKE_PROFIT_PCT = 5.0       # Take profit em percentual
-LEVERAGE_LEVEL = 1          # Nível de alavancagem (1x = sem alavancagem)
+INITIAL_BALANCE = 100.0      # Saldo inicial para paper trading
+TRADE_VALUE_USD = 5.0        # Valor em USD por trade
+STOP_LOSS_PCT = 2.0          # Stop loss em percentual
+TAKE_PROFIT_PCT = 5.0        # Take profit em percentual
+LEVERAGE_LEVEL = 50          # Nível de alavancagem (1x = sem alavancagem)
 
 # Gerenciamento de risco
-MAX_CONCURRENT_TRADES = 5   # Máximo de trades simultâneos
-MAX_DAILY_LOSS = 200.0      # Perda máxima diária em USD
+MAX_CONCURRENT_TRADES = 10   # Máximo de trades simultâneos
+MAX_DAILY_LOSS = 20.0        # Perda máxima diária em USD
 MAX_POSITION_SIZE_PCT = 10.0 # Máximo percentual do capital por posição
 
 # =============================================================================
@@ -51,7 +69,7 @@ LISTA_DE_ATIVOS = [
     
     # Tokens com denominação especial (grupos de 1000)
     '1000PEPEUSDT', '1000SHIBUSDT', '1000FLOKIUSDT', '1000BONKUSDT',
-    '1000XECUSDT', '1000LUNCUSDT', '1000RATUSDT', '1000BTTUSDT',
+    '1000XECUSDT', '1000LUNCUSDT',
     
     # Altcoins populares
     'CHRUSDT', 'GALAUSDT', 'APEUSDT', 'GMTUSDT', 'JASMYUSDT',
@@ -65,8 +83,8 @@ LISTA_DE_ATIVOS = [
 
 # RSI (Relative Strength Index)
 RSI_PERIOD = 14
-RSI_OVERSOLD = 30
-RSI_OVERBOUGHT = 70
+RSI_OVERSOLD = 20
+RSI_OVERBOUGHT = 80
 RSI_WEIGHT = 0.25
 
 # MACD (Moving Average Convergence Divergence)
@@ -90,13 +108,13 @@ EMA_WEIGHT = 0.25
 # CONFIGURAÇÕES DE TIMEFRAMES
 # =============================================================================
 
-PRIMARY_TIMEFRAME = '5m'      # Timeframe principal para análise
-SECONDARY_TIMEFRAME = '15m'   # Timeframe secundário
-CONFIRMATION_TIMEFRAME = '1h' # Timeframe para confirmação
+PRIMARY_TIMEFRAME = '1m'      # Timeframe principal para análise (padrão = 5m)
+SECONDARY_TIMEFRAME = '5m'   # Timeframe secundário (padrão = 15m)
+CONFIRMATION_TIMEFRAME = '15m' # Timeframe para confirmação (padrão = 1h)
 
 # Intervalos de atualização
-UPDATE_INTERVAL = 30         # Segundos entre atualizações
-HEARTBEAT_INTERVAL = 60      # Segundos entre heartbeats
+UPDATE_INTERVAL = 30         # Segundos entre atualizações (padrão = 30)
+HEARTBEAT_INTERVAL = 60      # Segundos entre heartbeats (padr]ao = 60)
 
 # =============================================================================
 # CONFIGURAÇÕES DA EXCHANGE (BINANCE)
@@ -266,3 +284,61 @@ def validate_config() -> List[str]:
         errors.append("UPDATE_INTERVAL deve ser pelo menos 5 segundos")
     
     return errors
+
+# =============================================================================
+# CONFIGURAÇÕES ESTRUTURADAS PARA COMPATIBILIDADE
+# =============================================================================
+
+# Configurações de trading estruturadas para compatibilidade com paper_trading.py
+TRADING_CONFIG = {
+    'INITIAL_BALANCE': INITIAL_BALANCE,      
+    'PAPER_TRADING_MODE': PAPER_TRADING_MODE,
+    'TRADE_VALUE_USD': TRADE_VALUE_USD,
+    'STOP_LOSS_PCT': STOP_LOSS_PCT,
+    'TAKE_PROFIT_PCT': TAKE_PROFIT_PCT,
+    'LEVERAGE_LEVEL': LEVERAGE_LEVEL,
+    'MAX_CONCURRENT_TRADES': MAX_CONCURRENT_TRADES,
+    'MAX_POSITIONS': MAX_CONCURRENT_TRADES,
+    'MAX_DAILY_LOSS': MAX_DAILY_LOSS,
+    'DAILY_LOSS_LIMIT': MAX_DAILY_LOSS,
+    'MAX_POSITION_SIZE_PCT': MAX_POSITION_SIZE_PCT,
+    
+    # Configurações de tarifas e custos realistas
+    'TRADING_FEE': DEFAULT_TRADING_FEE,      # 0.05% - Taxa de trading da Binance
+    'ENTRY_FEE': TOTAL_ENTRY_COST,          # 0.07% - Taxa + slippage na entrada
+    'EXIT_FEE': TOTAL_EXIT_COST,            # 0.07% - Taxa + slippage na saída
+    'SLIPPAGE': ESTIMATED_SLIPPAGE,         # 0.02% - Slippage estimado
+    'SPREAD': ESTIMATED_SPREAD,             # 0.01% - Spread médio estimado
+    'REALISTIC_FEES': True                  # Flag para ativar/desativar tarifas realistas
+}
+
+# Configurações da interface web estruturadas
+WEB_CONFIG = {
+    'HOST': WEB_HOST,
+    'PORT': WEB_PORT,
+    'DEBUG': DEBUG_WEB,
+    'SECRET_KEY': SECRET_KEY,
+    'SOCKETIO_ASYNC_MODE': SOCKETIO_ASYNC_MODE,
+    'CORS_ORIGINS': CORS_ORIGINS
+}
+
+# Configurações de ativos estruturadas
+ASSETS_CONFIG = {
+    'SYMBOLS': LISTA_DE_ATIVOS,
+    'TOTAL_ASSETS': len(LISTA_DE_ATIVOS)
+}
+
+# Configurações de logging estruturadas para compatibilidade
+LOGGING_CONFIG = {
+    'LOG_LEVEL': LOG_LEVEL,
+    'LOG_FORMAT': LOG_FORMAT,
+    'LOG_FILE': LOG_FILE,
+    'MAX_LOG_SIZE': MAX_LOG_SIZE,
+    'LOG_BACKUP_COUNT': LOG_BACKUP_COUNT,
+    'DATA_DIR': DATA_DIR,
+    'RESULTS_DIR': RESULTS_DIR,
+    'BACKUP_DIR': BACKUP_DIR,
+    'TRADING_RESULTS_FILE': TRADING_RESULTS_FILE,
+    'SETTINGS_FILE': SETTINGS_FILE,
+    'PERFORMANCE_FILE': PERFORMANCE_FILE
+}

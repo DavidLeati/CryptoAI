@@ -21,7 +21,6 @@ from config.settings import TRADING_CONFIG, WEB_CONFIG, ASSETS_CONFIG, get_confi
 
 # Importar sistemas de utilidades
 from src.utils.logger import get_logger
-from src.utils.cache import cache_manager
 from src.utils.risk_manager import risk_manager
 from src.utils.notifications import notification_manager
 from src.utils.performance import performance_monitor
@@ -241,7 +240,7 @@ def api_stop_bot():
             app_state['connection_status'] = 'disconnected'
             
             # Salvar resultados finais
-            if main.PAPER_TRADING_MODE:
+            if TRADING_CONFIG['PAPER_TRADING_MODE']:
                 paper_trader.save_results()
             
             add_alert('info', 'Bot parado. Resultados salvos.')
