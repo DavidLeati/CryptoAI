@@ -110,6 +110,107 @@ except ImportError:
 # 0. FUNÇÕES DE DEBUG E CONFIGURAÇÃO
 # =============================================================================
 
+def diagnose_market_data_quality(market_data: pd.DataFrame, symbol: str = "DESCONHECIDO") -> dict:
+    """
+    Diagnóstica a qualidade dos dados de mercado para identificar problemas comuns.
+    
+    Returns:
+        dict: {
+            'data_sufficient': bool,
+            'price_issues': list,
+            'volume_issues': list, 
+            'recommendations': list,
+            'summary': str
+        }
+    """
+    diagnosis = {
+        'data_sufficient': False,
+        'price_issues': [],
+        'volume_issues': [],
+        'recommendations': [],
+        'summary': ''
+    }
+    
+    if market_data is None or market_data.empty:
+        diagnosis['summary'] = f"❌ DADOS AUSENTES para {symbol}"
+        diagnosis['recommendations'].append("Verificar conectividade com a exchange")
+        return diagnosis
+    
+    data_length = len(market_data)
+    min_required = max(RSI_PERIOD, MACD_SLOW, BB_PERIOD, EMA_FILTER) + MIN_DATA_BUFFER
+    
+    print(f"🔍 DIAGNÓSTICO DE QUALIDADE DOS DADOS - {symbol}")
+    print(f"   📊 Quantidade: {data_length} velas (mínimo: {min_required})")
+    
+    # Verificar suficiência de dados
+    if data_length < min_required:
+        diagnosis['recommendations'].append(f"Aguardar mais dados (faltam {min_required - data_length} velas)")
+    else:
+        diagnosis['data_sufficient'] = True
+    
+    # Análise de preços
+    current_price = market_data['close'].iloc[-1]
+    price_range = market_data['close'].max() - market_data['close'].min()
+    price_std = market_data['close'].std()
+    
+    if current_price <= 0 or np.isnan(current_price):
+        diagnosis['price_issues'].append("Preço atual inválido")
+    
+    if price_range == 0:
+        diagnosis['price_issues'].append("Preços idênticos (sem movimento)")
+    elif price_std / current_price < 0.001:  # Variação < 0.1%
+        diagnosis['price_issues'].append("Volatilidade extremamente baixa")
+    
+    # Análise de volume
+    current_volume = market_data['volume'].iloc[-1]
+    volume_mean = market_data['volume'].mean()
+    volume_median = market_data['volume'].median()
+    zero_volume_count = (market_data['volume'] == 0).sum()
+    
+    if current_volume <= 0:
+        diagnosis['volume_issues'].append("Volume atual zero ou negativo")
+    
+    if volume_mean <= 0 or np.isnan(volume_mean):
+        diagnosis['volume_issues'].append("Volume médio inválido")
+    
+    if zero_volume_count > data_length * 0.5:  # Mais de 50% com volume zero
+        diagnosis['volume_issues'].append(f"Muitas velas sem volume ({zero_volume_count}/{data_length})")
+    
+    if volume_median <= 0:
+        diagnosis['volume_issues'].append("Volume mediano inválido")
+    
+    # Verificar consistência temporal
+    time_gaps = market_data.index.to_series().diff().dropna()
+    irregular_gaps = time_gaps[time_gaps != time_gaps.mode()[0]] if len(time_gaps) > 0 else []
+    
+    if len(irregular_gaps) > 0:
+        diagnosis['recommendations'].append(f"Detectados {len(irregular_gaps)} gaps temporais irregulares")
+    
+    # Gerar recomendações
+    if diagnosis['price_issues']:
+        diagnosis['recommendations'].append("Problemas de preço detectados - verificar fonte de dados")
+    
+    if diagnosis['volume_issues']:
+        diagnosis['recommendations'].append("Problemas de volume detectados - considerar usar apenas análise de preço")
+    
+    # Gerar resumo
+    status = "✅ DADOS OK" if diagnosis['data_sufficient'] and not diagnosis['price_issues'] and not diagnosis['volume_issues'] else "⚠️ PROBLEMAS DETECTADOS"
+    total_issues = len(diagnosis['price_issues']) + len(diagnosis['volume_issues'])
+    
+    diagnosis['summary'] = f"{status} - {total_issues} problema(s) encontrado(s)" if total_issues > 0 else f"{status}"
+    
+    print(f"   💰 Preço: {current_price:.6f} (range: {price_range:.6f}, std: {price_std:.6f})")
+    print(f"   📈 Volume: atual={current_volume:.2f}, média={volume_mean:.2f}, mediana={volume_median:.2f}")
+    print(f"   🚨 Problemas: Preço={len(diagnosis['price_issues'])}, Volume={len(diagnosis['volume_issues'])}")
+    print(f"   📋 Status: {diagnosis['summary']}")
+    
+    if diagnosis['recommendations']:
+        print(f"   💡 Recomendações:")
+        for i, rec in enumerate(diagnosis['recommendations'], 1):
+            print(f"      {i}. {rec}")
+    
+    return diagnosis
+
 def print_current_settings():
     """
     Imprime as configurações atuais sendo utilizadas pelo sistema de análise.
@@ -1021,7 +1122,11 @@ def find_integrated_momentum_signal_mta(client, symbol: str, manager) -> str:
 def find_integrated_momentum_signal_legacy(market_data: pd.DataFrame) -> str:
     """
     Versão original da análise integrada (mantida para compatibilidade e fallback).
+    MELHORADA: Inclui diagnóstico de qualidade dos dados.
     """
+    # 0. Diagnóstico de qualidade dos dados
+    diagnosis = diagnose_market_data_quality(market_data, "DADOS_LEGACY")
+    
     # 1. Análise técnica integrada usando os 4 indicadores
     integrated_analysis = calculate_integrated_signal(market_data)
     
@@ -1034,13 +1139,23 @@ def find_integrated_momentum_signal_legacy(market_data: pd.DataFrame) -> str:
     if 'debug_description' in integrated_analysis:
         print(f"   ➤ Detalhes: {integrated_analysis['debug_description']}")
     
-    # Se há dados insuficientes, usar fallback diretamente
-    if 'Dados insuficientes' in integrated_analysis.get('description', ''):
-        print(f"⚠️  {integrated_analysis['description']}")
-        momentum_signal = find_momentum_signal_legacy(market_data)
-        if momentum_signal != 'AGUARDAR':
-            print(f"📈 FALLBACK: Usando sinal de momentum tradicional - {momentum_signal}")
-            return momentum_signal
+    # Se há dados insuficientes ou problemas críticos, usar fallback com diagnóstico
+    if ('Dados insuficientes' in integrated_analysis.get('description', '') or 
+        not diagnosis['data_sufficient'] or 
+        len(diagnosis['price_issues']) > 0):
+        
+        print(f"⚠️  {integrated_analysis.get('description', 'Problemas na qualidade dos dados')}")
+        print(f"   📊 Diagnóstico: {diagnosis['summary']}")
+        
+        # Só usar momentum legacy se os dados básicos estão OK
+        if len(diagnosis['price_issues']) == 0:  # Preços OK, mesmo que volume tenha problemas
+            momentum_signal = find_momentum_signal_legacy(market_data)
+            if momentum_signal != 'AGUARDAR':
+                print(f"📈 FALLBACK: Usando sinal de momentum tradicional - {momentum_signal}")
+                return momentum_signal
+        else:
+            print(f"❌ DADOS CRÍTICOS INVÁLIDOS: Não é possível realizar análise segura")
+        
         return 'AGUARDAR'
     
     # 2. Se há sinal claro nos indicadores técnicos, confirmar com momentum
@@ -1100,108 +1215,267 @@ def find_integrated_momentum_signal(market_data: pd.DataFrame) -> str:
 def find_momentum_signal_legacy(market_data: pd.DataFrame) -> str:
     """
     Análise de momentum tradicional (mantida para compatibilidade e backup).
+    MELHORADA: Tratamento robusto para dados com problemas comuns.
     """
     required_rows = max(PRICE_CHANGE_PERIOD_MINUTES, VOLUME_AVERAGE_PERIOD_MINUTES) + 1
     if market_data is None or len(market_data) < required_rows:
+        print(f"⚠️  MOMENTUM LEGACY: Dados insuficientes (necessário: {required_rows}, atual: {len(market_data) if market_data is not None else 0})")
         return 'AGUARDAR'
 
     latest_candle = market_data.iloc[-1]
     current_price = latest_candle['close']
     current_volume = latest_candle['volume']
 
-    # Calcular mudança de preço no período especificado
+    # Validação de dados básicos
+    if current_price <= 0 or np.isnan(current_price):
+        print(f"⚠️  MOMENTUM LEGACY: Preço atual inválido ({current_price})")
+        return 'AGUARDAR'
+
+    # Calcular mudança de preço no período especificado com validação robusta
     price_N_periods_ago = market_data['close'].iloc[-1 - PRICE_CHANGE_PERIOD_MINUTES]
-    if price_N_periods_ago == 0: 
+    if price_N_periods_ago <= 0 or np.isnan(price_N_periods_ago): 
+        print(f"⚠️  MOMENTUM LEGACY: Preço histórico inválido ({price_N_periods_ago})")
         return 'AGUARDAR'
     
     price_change_pct = ((current_price / price_N_periods_ago) - 1) * 100
 
-    # Calcular volume médio e multiplicador atual
+    # Calcular volume médio e multiplicador atual - MELHORADO
     previous_candles = market_data.iloc[-1 - VOLUME_AVERAGE_PERIOD_MINUTES:-1]
     average_volume = previous_candles['volume'].mean()
     
-    if average_volume == 0 or np.isnan(average_volume):
-        volume_multiplier = 999.99  # Valor alto mas finito para representar volume muito acima da média
-    else:
-        volume_multiplier = current_volume / average_volume
+    # Tratamento mais inteligente do volume
+    if average_volume <= 0 or np.isnan(average_volume):
+        # Tentar usar mediana como alternativa
+        median_volume = previous_candles['volume'].median()
+        if median_volume > 0 and not np.isnan(median_volume):
+            average_volume = median_volume
+            print(f"📊 MOMENTUM LEGACY: Usando mediana de volume como referência ({median_volume:.2f})")
+        else:
+            # Se nem mediana funciona, usar abordagem conservadora
+            if current_volume > 0:
+                print(f"⚠️  MOMENTUM LEGACY: Volume histórico zero/inválido - Análise limitada")
+                # Focar apenas na mudança de preço se volume é problemático
+                if abs(price_change_pct) >= PRICE_CHANGE_THRESHOLD * 1.5:  # Threshold mais alto sem volume
+                    if price_change_pct >= PRICE_CHANGE_THRESHOLD * 1.5:
+                        print(f"🟢 MOMENTUM DE ALTA (sem análise de volume): Preço +{price_change_pct:.2f}%")
+                        return 'COMPRAR'
+                    elif price_change_pct <= -PRICE_CHANGE_THRESHOLD * 1.5:
+                        print(f"🔴 MOMENTUM DE BAIXA (sem análise de volume): Preço {price_change_pct:.2f}%")
+                        return 'VENDER'
+                return 'AGUARDAR'
+            else:
+                print(f"❌ MOMENTUM LEGACY: Volume atual também inválido")
+                return 'AGUARDAR'
+    
+    volume_multiplier = current_volume / average_volume
 
-    # Verificar também a tendência de preço recente (últimas 2 velas)
+    # Verificar também a tendência de preço recente (últimas 2-3 velas) - MELHORADO
     recent_price_trend = 0
-    if len(market_data) >= 3:
+    trend_description = "neutra"
+    
+    if len(market_data) >= 4:  # Usar mais velas para análise de tendência
+        price_3_ago = market_data['close'].iloc[-4]
+        price_2_ago = market_data['close'].iloc[-3] 
+        price_1_ago = market_data['close'].iloc[-2]
+        
+        # Calcular variações consecutivas
+        change_3_to_2 = (price_2_ago - price_3_ago) / price_3_ago if price_3_ago > 0 else 0
+        change_2_to_1 = (price_1_ago - price_2_ago) / price_2_ago if price_2_ago > 0 else 0
+        change_1_to_current = (current_price - price_1_ago) / price_1_ago if price_1_ago > 0 else 0
+        
+        # Contar movimentos positivos e negativos
+        positive_moves = sum(1 for change in [change_3_to_2, change_2_to_1, change_1_to_current] if change > 0.001)  # >0.1%
+        negative_moves = sum(1 for change in [change_3_to_2, change_2_to_1, change_1_to_current] if change < -0.001)  # <-0.1%
+        
+        if positive_moves >= 2 and negative_moves == 0:
+            recent_price_trend = 2  # Tendência forte de alta
+            trend_description = "forte alta"
+        elif positive_moves >= 2:
+            recent_price_trend = 1  # Tendência de alta
+            trend_description = "alta"
+        elif negative_moves >= 2 and positive_moves == 0:
+            recent_price_trend = -2  # Tendência forte de baixa
+            trend_description = "forte baixa"
+        elif negative_moves >= 2:
+            recent_price_trend = -1  # Tendência de baixa
+            trend_description = "baixa"
+        else:
+            recent_price_trend = 0  # Sideways/neutro
+            trend_description = "lateral"
+    
+    elif len(market_data) >= 3:
+        # Fallback para análise com menos dados
         price_2_ago = market_data['close'].iloc[-3]
         price_1_ago = market_data['close'].iloc[-2]
         
         if price_1_ago > price_2_ago and current_price > price_1_ago:
             recent_price_trend = 1  # Tendência de alta
+            trend_description = "alta"
         elif price_1_ago < price_2_ago and current_price < price_1_ago:
             recent_price_trend = -1  # Tendência de baixa
+            trend_description = "baixa"
+        else:
+            trend_description = "neutra"
     
-    print(f"Análise de MOMENTUM LEGACY: Variação Preço={price_change_pct:.2f}%, Vol. Multiplicador={volume_multiplier:.2f}x, Tendência Recente={recent_price_trend}")
+    # Diagnóstico melhorado
+    volume_status = "normal" if volume_multiplier < 2.0 else f"elevado ({volume_multiplier:.1f}x)"
+    if volume_multiplier > 10:
+        volume_status = f"muito elevado ({volume_multiplier:.1f}x)"
+    
+    print(f"📊 MOMENTUM LEGACY DETALHADO:")
+    print(f"   💰 Preço: {price_change_pct:.2f}% em {PRICE_CHANGE_PERIOD_MINUTES}min (atual: {current_price:.6f})")
+    print(f"   📈 Volume: {volume_status} (atual: {current_volume:.2f}, média: {average_volume:.2f})")
+    print(f"   📊 Tendência: {trend_description} (score: {recent_price_trend})")
 
-    # Sinal de COMPRA (LONG): Momentum de alta + volume elevado
-    if (price_change_pct >= PRICE_CHANGE_THRESHOLD and 
-        volume_multiplier >= VOLUME_MULTIPLIER_THRESHOLD and
-        recent_price_trend >= 0):  # Confirma tendência de alta
-        print(f"🟢 MOMENTUM DE ALTA detectado: Preço +{price_change_pct:.2f}% com volume {volume_multiplier:.1f}x maior")
+    # REGRAS DE SINALIZAÇÃO MELHORADAS
+    
+    # Sinal de COMPRA (LONG): Momentum de alta + volume adequado + tendência favorável
+    buy_price_ok = price_change_pct >= PRICE_CHANGE_THRESHOLD
+    buy_volume_ok = volume_multiplier >= VOLUME_MULTIPLIER_THRESHOLD
+    buy_trend_ok = recent_price_trend >= 0  # Pelo menos neutra
+    
+    if buy_price_ok and buy_volume_ok and buy_trend_ok:
+        confidence_level = "NORMAL"
+        if recent_price_trend >= 2:  # Tendência muito forte
+            confidence_level = "ALTA"
+        elif recent_price_trend == 0 and price_change_pct >= PRICE_CHANGE_THRESHOLD * 2:  # Preço muito forte
+            confidence_level = "ALTA"
+        
+        print(f"🟢 SINAL DE COMPRA ({confidence_level}): Preço +{price_change_pct:.2f}%, Volume {volume_multiplier:.1f}x, Tendência {trend_description}")
         return 'COMPRAR'
     
-    # Sinal de VENDA (SHORT): Momentum de baixa + volume elevado  
-    if (price_change_pct <= -PRICE_CHANGE_THRESHOLD and 
-        volume_multiplier >= VOLUME_MULTIPLIER_THRESHOLD and
-        recent_price_trend <= 0):  # Confirma tendência de baixa
-        print(f"🔴 MOMENTUM DE BAIXA detectado: Preço {price_change_pct:.2f}% com volume {volume_multiplier:.1f}x maior")
+    # Sinal de VENDA (SHORT): Momentum de baixa + volume adequado + tendência favorável
+    sell_price_ok = price_change_pct <= -PRICE_CHANGE_THRESHOLD
+    sell_volume_ok = volume_multiplier >= VOLUME_MULTIPLIER_THRESHOLD
+    sell_trend_ok = recent_price_trend <= 0  # Pelo menos neutra
+    
+    if sell_price_ok and sell_volume_ok and sell_trend_ok:
+        confidence_level = "NORMAL"
+        if recent_price_trend <= -2:  # Tendência muito forte de baixa
+            confidence_level = "ALTA"
+        elif recent_price_trend == 0 and price_change_pct <= -PRICE_CHANGE_THRESHOLD * 2:  # Preço muito forte de baixa
+            confidence_level = "ALTA"
+        
+        print(f"🔴 SINAL DE VENDA ({confidence_level}): Preço {price_change_pct:.2f}%, Volume {volume_multiplier:.1f}x, Tendência {trend_description}")
         return 'VENDER'
+    
+    # Diagnóstico de por que não houve sinal
+    missing_conditions = []
+    if not buy_price_ok and not sell_price_ok:
+        missing_conditions.append(f"mudança preço insuficiente (|{price_change_pct:.2f}%| < {PRICE_CHANGE_THRESHOLD}%)")
+    if not buy_volume_ok and not sell_volume_ok:
+        missing_conditions.append(f"volume insuficiente ({volume_multiplier:.1f}x < {VOLUME_MULTIPLIER_THRESHOLD}x)")
+    if price_change_pct > 0 and not buy_trend_ok:
+        missing_conditions.append("tendência desfavorável para compra")
+    elif price_change_pct < 0 and not sell_trend_ok:
+        missing_conditions.append("tendência desfavorável para venda")
+    
+    if missing_conditions:
+        print(f"⚠️  AGUARDANDO: {', '.join(missing_conditions)}")
+    else:
+        print(f"⚠️  AGUARDANDO: Condições mistas ou neutras")
         
     return 'AGUARDAR'
 
 def analyze_momentum_confirmation(market_data: pd.DataFrame, signal: str) -> bool:
     """
     Confirma sinal técnico com análise de momentum e volume.
+    MELHORADA: Tratamento robusto para casos extremos e diagnóstico detalhado.
     """
-    if len(market_data) < max(PRICE_CHANGE_PERIOD_MINUTES, VOLUME_AVERAGE_PERIOD_MINUTES) + 1:
+    required_data = max(PRICE_CHANGE_PERIOD_MINUTES, VOLUME_AVERAGE_PERIOD_MINUTES) + 1
+    if len(market_data) < required_data:
+        print(f"⚠️  CONFIRMAÇÃO: Dados insuficientes para análise de momentum ({len(market_data)} < {required_data})")
         return False
     
     latest_candle = market_data.iloc[-1]
     current_price = latest_candle['close']
     current_volume = latest_candle['volume']
     
-    # Calcular mudança de preço
+    # Validação básica dos dados
+    if current_price <= 0 or np.isnan(current_price):
+        print(f"⚠️  CONFIRMAÇÃO: Preço atual inválido ({current_price})")
+        return False
+    
+    # Calcular mudança de preço com validação
     price_N_periods_ago = market_data['close'].iloc[-1 - PRICE_CHANGE_PERIOD_MINUTES]
-    if price_N_periods_ago == 0:
+    if price_N_periods_ago <= 0 or np.isnan(price_N_periods_ago):
+        print(f"⚠️  CONFIRMAÇÃO: Preço histórico inválido ({price_N_periods_ago})")
         return False
     
     price_change_pct = ((current_price / price_N_periods_ago) - 1) * 100
     
-    # Calcular volume com tratamento para casos extremos
+    # Calcular volume com tratamento melhorado para casos extremos
     previous_candles = market_data.iloc[-1 - VOLUME_AVERAGE_PERIOD_MINUTES:-1]
     average_volume = previous_candles['volume'].mean()
     
-    if average_volume == 0 or np.isnan(average_volume):
-        # Se volume médio é zero, aceitar qualquer volume atual > 0 como positivo
-        volume_multiplier = 999.99 if current_volume > 0 else 0
+    volume_multiplier = 0.0
+    volume_analysis_valid = True
+    
+    if average_volume <= 0 or np.isnan(average_volume):
+        # Tentar usar mediana como alternativa
+        median_volume = previous_candles['volume'].median()
+        if median_volume > 0 and not np.isnan(median_volume):
+            average_volume = median_volume
+            volume_multiplier = current_volume / average_volume
+            print(f"📊 CONFIRMAÇÃO: Usando mediana de volume ({median_volume:.2f}) como referência")
+        else:
+            # Volume histórico problemático - usar critérios apenas de preço
+            volume_analysis_valid = False
+            volume_multiplier = 1.0  # Valor neutro para não afetar a análise
+            print(f"⚠️  CONFIRMAÇÃO: Volume histórico inválido - focando apenas na mudança de preço")
     else:
         volume_multiplier = current_volume / average_volume
     
-    print(f"🔍 CONFIRMAÇÃO DE MOMENTUM: Sinal={signal}, Preço={price_change_pct:.2f}%, Volume={volume_multiplier:.2f}x")
+    print(f"🔍 CONFIRMAÇÃO DE MOMENTUM DETALHADA:")
+    print(f"   📊 Sinal a confirmar: {signal}")
+    print(f"   💰 Mudança preço: {price_change_pct:.2f}% em {PRICE_CHANGE_PERIOD_MINUTES}min")
+    print(f"   📈 Volume: {volume_multiplier:.2f}x {'(análise válida)' if volume_analysis_valid else '(dados problemáticos)'}")
     
-    # Confirmação para sinais de COMPRA - Critérios mais flexíveis
+    # Definir thresholds ajustados para confirmação (mais flexíveis que sinais primários)
+    price_threshold = PRICE_CHANGE_THRESHOLD * 0.3  # 30% do threshold original
+    volume_threshold = VOLUME_MULTIPLIER_THRESHOLD * 0.5  # 50% do threshold original
+    
+    # Confirmação para sinais de COMPRA
     if signal == 'COMPRAR':
-        momentum_ok = price_change_pct >= PRICE_CHANGE_THRESHOLD * 0.3  # Reduzido de 50% para 30%
-        volume_ok = volume_multiplier >= VOLUME_MULTIPLIER_THRESHOLD * 0.5  # Reduzido de 70% para 50%
+        momentum_ok = price_change_pct >= price_threshold
+        volume_ok = not volume_analysis_valid or volume_multiplier >= volume_threshold
+        
         confirmation = momentum_ok and volume_ok
-        print(f"   ➤ COMPRA: Momentum OK={momentum_ok} ({price_change_pct:.2f}% >= {PRICE_CHANGE_THRESHOLD * 0.3:.2f}%), "
-              f"Volume OK={volume_ok} ({volume_multiplier:.2f}x >= {VOLUME_MULTIPLIER_THRESHOLD * 0.5:.2f}x)")
+        
+        # Diagnóstico detalhado
+        momentum_status = f"✅ OK ({price_change_pct:.2f}% >= {price_threshold:.2f}%)" if momentum_ok else f"❌ Insuficiente ({price_change_pct:.2f}% < {price_threshold:.2f}%)"
+        
+        if volume_analysis_valid:
+            volume_status = f"✅ OK ({volume_multiplier:.2f}x >= {volume_threshold:.2f}x)" if volume_ok else f"❌ Insuficiente ({volume_multiplier:.2f}x < {volume_threshold:.2f}x)"
+        else:
+            volume_status = "⚠️  Ignorado (dados inválidos)"
+        
+        print(f"   ➤ COMPRA: Momentum {momentum_status}, Volume {volume_status}")
+        print(f"   ➤ Resultado: {'✅ CONFIRMADO' if confirmation else '❌ REJEITADO'}")
+        
         return confirmation
     
-    # Confirmação para sinais de VENDA - Critérios mais flexíveis
+    # Confirmação para sinais de VENDA
     elif signal == 'VENDER':
-        momentum_ok = price_change_pct <= -PRICE_CHANGE_THRESHOLD * 0.3  # Reduzido de 50% para 30%
-        volume_ok = volume_multiplier >= VOLUME_MULTIPLIER_THRESHOLD * 0.5  # Reduzido de 70% para 50%
+        momentum_ok = price_change_pct <= -price_threshold
+        volume_ok = not volume_analysis_valid or volume_multiplier >= volume_threshold
+        
         confirmation = momentum_ok and volume_ok
-        print(f"   ➤ VENDA: Momentum OK={momentum_ok} ({price_change_pct:.2f}% <= {-PRICE_CHANGE_THRESHOLD * 0.3:.2f}%), "
-              f"Volume OK={volume_ok} ({volume_multiplier:.2f}x >= {VOLUME_MULTIPLIER_THRESHOLD * 0.5:.2f}x)")
+        
+        # Diagnóstico detalhado
+        momentum_status = f"✅ OK ({price_change_pct:.2f}% <= {-price_threshold:.2f}%)" if momentum_ok else f"❌ Insuficiente ({price_change_pct:.2f}% > {-price_threshold:.2f}%)"
+        
+        if volume_analysis_valid:
+            volume_status = f"✅ OK ({volume_multiplier:.2f}x >= {volume_threshold:.2f}x)" if volume_ok else f"❌ Insuficiente ({volume_multiplier:.2f}x < {volume_threshold:.2f}x)"
+        else:
+            volume_status = "⚠️  Ignorado (dados inválidos)"
+        
+        print(f"   ➤ VENDA: Momentum {momentum_status}, Volume {volume_status}")
+        print(f"   ➤ Resultado: {'✅ CONFIRMADO' if confirmation else '❌ REJEITADO'}")
+        
         return confirmation
     
+    print(f"   ➤ Sinal desconhecido: {signal}")
     return False
 
 # Alias para compatibilidade com código existente
@@ -1857,6 +2131,114 @@ elif divergence['bearish_divergence']:
     print(f"   • EMA Filtro: {EMA_FILTER} períodos no timeframe de confirmação")
     print("="*60)
 
+def test_improved_momentum_analysis():
+    """
+    Função de teste para demonstrar as melhorias na análise de momentum.
+    Cria dados sintéticos com problemas comuns para testar a robustez.
+    """
+    print("🧪 TESTE DAS MELHORIAS NA ANÁLISE DE MOMENTUM")
+    print("=" * 60)
+    
+    # Teste 1: Dados com volume zero
+    print("\n📊 TESTE 1: Dados com volume médio zero")
+    dates = pd.date_range('2024-01-01', periods=50, freq='1min')
+    test_data_1 = pd.DataFrame({
+        'open': [100.0] * 50,
+        'high': [100.1] * 50,
+        'low': [99.9] * 50,
+        'close': [100.0 + (i * 0.01) for i in range(50)],  # Preço subindo lentamente
+        'volume': [0.0] * 49 + [1000.0]  # Apenas última vela com volume
+    }, index=dates)
+    
+    result_1 = find_momentum_signal_legacy(test_data_1)
+    print(f"Resultado Teste 1: {result_1}")
+    
+    # Teste 2: Dados com preços idênticos  
+    print("\n📊 TESTE 2: Dados com preços idênticos")
+    test_data_2 = pd.DataFrame({
+        'open': [100.0] * 50,
+        'high': [100.0] * 50, 
+        'low': [100.0] * 50,
+        'close': [100.0] * 50,  # Preços totalmente estáveis
+        'volume': [1000.0] * 50
+    }, index=dates)
+    
+    result_2 = find_momentum_signal_legacy(test_data_2)
+    print(f"Resultado Teste 2: {result_2}")
+    
+    # Teste 3: Dados normais com momentum
+    print("\n📊 TESTE 3: Dados normais com momentum de alta")
+    test_data_3 = pd.DataFrame({
+        'open': [100.0 + (i * 0.1) for i in range(50)],
+        'high': [100.2 + (i * 0.1) for i in range(50)],
+        'low': [99.8 + (i * 0.1) for i in range(50)],
+        'close': [100.0 + (i * 0.1) for i in range(50)],  # Preço subindo consistentemente
+        'volume': [1000.0 + (i * 10) for i in range(50)]  # Volume crescente
+    }, index=dates)
+    
+    result_3 = find_momentum_signal_legacy(test_data_3)
+    print(f"Resultado Teste 3: {result_3}")
+    
+    print("\n" + "=" * 60)
+    print("🏁 TESTE CONCLUÍDO")
+
+def explain_legacy_fallback_causes():
+    """
+    Explica as principais causas que fazem a análise cair no modo legacy.
+    """
+    print("📚 EXPLICAÇÃO: Por que a análise cai no modo LEGACY?")
+    print("=" * 60)
+    
+    print("\n🔍 PRINCIPAIS CAUSAS:")
+    print("1. 📊 DADOS INSUFICIENTES:")
+    print("   - Menos velas que o mínimo necessário para indicadores técnicos")
+    print(f"   - Mínimo necessário: {max(RSI_PERIOD, MACD_SLOW, BB_PERIOD, EMA_FILTER) + MIN_DATA_BUFFER} velas")
+    print("   - Solução: Aguardar mais dados ou reduzir períodos dos indicadores")
+    
+    print("\n2. 💰 PROBLEMAS DE PREÇO:")
+    print("   - Preços iguais (variação 0.00%)")
+    print("   - Preços inválidos (zero, negativos, NaN)")
+    print("   - Solução: Verificar fonte de dados e conectividade")
+    
+    print("\n3. 📈 PROBLEMAS DE VOLUME:")
+    print("   - Volume médio histórico zero → Multiplicador 999.99x")
+    print("   - Volume atual zero ou inválido")
+    print("   - Muitas velas consecutivas sem volume")
+    print("   - Solução: Usar análise baseada apenas em preço")
+    
+    print("\n4. 🔄 FALHAS NA ANÁLISE INTEGRADA:")
+    print("   - Indicadores técnicos retornam valores inválidos")
+    print("   - Falta de confirmação de momentum")
+    print("   - Baixa confiança nos sinais técnicos")
+    print("   - Solução: Ajustar thresholds ou usar análise mais simples")
+    
+    print("\n5. 🌐 PROBLEMAS DE CONECTIVIDADE:")
+    print("   - WebSocket desconectado ou instável")
+    print("   - API REST com timeout ou erros")
+    print("   - Dados multi-timeframe incompletos")
+    print("   - Solução: Verificar conexão e usar fallbacks robustos")
+    
+    print("\n💡 MELHORIAS IMPLEMENTADAS:")
+    print("✅ Diagnóstico automático da qualidade dos dados")
+    print("✅ Tratamento robusto para volume zero/inválido")
+    print("✅ Análise de tendência melhorada (3-4 velas)")
+    print("✅ Logs detalhados para debugging")
+    print("✅ Validação de dados antes de cada cálculo")
+    print("✅ Fallbacks inteligentes baseados na qualidade dos dados")
+    
+    print("\n🎯 CONFIGURAÇÕES RELEVANTES:")
+    print(f"   📊 RSI_PERIOD: {RSI_PERIOD}")
+    print(f"   📈 PRICE_CHANGE_THRESHOLD: {PRICE_CHANGE_THRESHOLD}%")
+    print(f"   📈 VOLUME_MULTIPLIER_THRESHOLD: {VOLUME_MULTIPLIER_THRESHOLD}x")
+    print(f"   🕐 PRICE_CHANGE_PERIOD_MINUTES: {PRICE_CHANGE_PERIOD_MINUTES}")
+    print(f"   🕐 VOLUME_AVERAGE_PERIOD_MINUTES: {VOLUME_AVERAGE_PERIOD_MINUTES}")
+    
+    print("\n" + "=" * 60)
+
 if __name__ == "__main__":
     print_current_settings()
     example_multi_timeframe_usage()
+    print("\n")
+    explain_legacy_fallback_causes()
+    print("\n")
+    test_improved_momentum_analysis()
