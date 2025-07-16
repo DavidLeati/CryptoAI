@@ -113,6 +113,7 @@ except ImportError:
 def diagnose_market_data_quality(market_data: pd.DataFrame, symbol: str = "DESCONHECIDO") -> dict:
     """
     Diagnóstica a qualidade dos dados de mercado para identificar problemas comuns.
+    VERSÃO ROBUSTA: Trata todos os casos extremos e erros de dados.
     
     Returns:
         dict: {
@@ -131,83 +132,178 @@ def diagnose_market_data_quality(market_data: pd.DataFrame, symbol: str = "DESCO
         'summary': ''
     }
     
-    if market_data is None or market_data.empty:
-        diagnosis['summary'] = f"❌ DADOS AUSENTES para {symbol}"
-        diagnosis['recommendations'].append("Verificar conectividade com a exchange")
-        return diagnosis
+    try:
+        # Verificação inicial de dados
+        if market_data is None:
+            diagnosis['summary'] = f"❌ DADOS NULOS para {symbol}"
+            diagnosis['recommendations'].append("Verificar conectividade com a exchange")
+            print(f"🔍 DIAGNÓSTICO - {symbol}: DADOS NULOS")
+            return diagnosis
+        
+        if market_data.empty:
+            diagnosis['summary'] = f"❌ DADOS VAZIOS para {symbol}"
+            diagnosis['recommendations'].append("Aguardar dados da exchange")
+            print(f"🔍 DIAGNÓSTICO - {symbol}: DADOS VAZIOS")
+            return diagnosis
+        
+        # Verificar colunas necessárias
+        required_columns = ['close', 'volume', 'open', 'high', 'low']
+        missing_columns = [col for col in required_columns if col not in market_data.columns]
+        if missing_columns:
+            diagnosis['price_issues'].append(f"Colunas ausentes: {missing_columns}")
+            diagnosis['summary'] = f"❌ ESTRUTURA INVÁLIDA para {symbol}"
+            print(f"🔍 DIAGNÓSTICO - {symbol}: COLUNAS AUSENTES - {missing_columns}")
+            return diagnosis
+        
+        data_length = len(market_data)
+        
+        # Usar valores padrão seguros se as constantes não estiverem definidas
+        try:
+            min_required = max(RSI_PERIOD, MACD_SLOW, BB_PERIOD, EMA_FILTER) + MIN_DATA_BUFFER
+        except NameError:
+            # Fallback se as constantes não estão definidas
+            min_required = max(14, 26, 20, 200) + 3  # 203 velas mínimas
+        
+        print(f"🔍 DIAGNÓSTICO DE QUALIDADE DOS DADOS - {symbol}")
+        print(f"   📊 Quantidade: {data_length} velas (mínimo: {min_required})")
+        
+        # Verificar suficiência de dados
+        if data_length < min_required:
+            diagnosis['recommendations'].append(f"Aguardar mais dados (faltam {min_required - data_length} velas)")
+        else:
+            diagnosis['data_sufficient'] = True
+        
+        # ANÁLISE DE PREÇOS - Com tratamento robusto de erros
+        try:
+            current_price = market_data['close'].iloc[-1]
+            
+            # Verificar se o preço é válido
+            if pd.isna(current_price) or np.isnan(current_price) or np.isinf(current_price):
+                diagnosis['price_issues'].append("Preço atual é NaN ou infinito")
+                current_price = 0.0
+            elif current_price <= 0:
+                diagnosis['price_issues'].append("Preço atual zero ou negativo")
+            
+            # Calcular estatísticas de preço com proteção contra erros
+            try:
+                price_max = market_data['close'].max()
+                price_min = market_data['close'].min()
+                price_range = price_max - price_min if not (pd.isna(price_max) or pd.isna(price_min)) else 0
+                price_std = market_data['close'].std()
+                
+                if pd.isna(price_std) or np.isnan(price_std):
+                    price_std = 0.0
+                    diagnosis['price_issues'].append("Desvio padrão de preço inválido")
+                
+                if price_range == 0:
+                    diagnosis['price_issues'].append("Preços idênticos (sem movimento)")
+                elif current_price > 0 and price_std / current_price < 0.001:  # Variação < 0.1%
+                    diagnosis['price_issues'].append("Volatilidade extremamente baixa")
+                    
+            except Exception as e:
+                diagnosis['price_issues'].append(f"Erro no cálculo de estatísticas de preço: {str(e)}")
+                price_range = 0.0
+                price_std = 0.0
+                
+        except Exception as e:
+            diagnosis['price_issues'].append(f"Erro na análise de preços: {str(e)}")
+            current_price = 0.0
+            price_range = 0.0
+            price_std = 0.0
+        
+        # ANÁLISE DE VOLUME - Com tratamento robusto de erros
+        try:
+            current_volume = market_data['volume'].iloc[-1]
+            
+            # Verificar se o volume é válido
+            if pd.isna(current_volume) or np.isnan(current_volume) or np.isinf(current_volume):
+                diagnosis['volume_issues'].append("Volume atual é NaN ou infinito")
+                current_volume = 0.0
+            elif current_volume < 0:
+                diagnosis['volume_issues'].append("Volume atual negativo")
+                current_volume = 0.0
+            
+            # Calcular estatísticas de volume com proteção
+            try:
+                volume_mean = market_data['volume'].mean()
+                volume_median = market_data['volume'].median()
+                zero_volume_count = (market_data['volume'] == 0).sum()
+                
+                if pd.isna(volume_mean) or np.isnan(volume_mean):
+                    volume_mean = 0.0
+                    diagnosis['volume_issues'].append("Volume médio inválido")
+                elif volume_mean <= 0:
+                    diagnosis['volume_issues'].append("Volume médio zero ou negativo")
+                
+                if pd.isna(volume_median) or np.isnan(volume_median):
+                    volume_median = 0.0
+                    diagnosis['volume_issues'].append("Volume mediano inválido")
+                elif volume_median <= 0:
+                    diagnosis['volume_issues'].append("Volume mediano zero ou negativo")
+                
+                if zero_volume_count > data_length * 0.5:  # Mais de 50% com volume zero
+                    diagnosis['volume_issues'].append(f"Muitas velas sem volume ({zero_volume_count}/{data_length})")
+                    
+            except Exception as e:
+                diagnosis['volume_issues'].append(f"Erro no cálculo de estatísticas de volume: {str(e)}")
+                volume_mean = 0.0
+                volume_median = 0.0
+                zero_volume_count = data_length
+                
+        except Exception as e:
+            diagnosis['volume_issues'].append(f"Erro na análise de volume: {str(e)}")
+            current_volume = 0.0
+            volume_mean = 0.0
+            volume_median = 0.0
+            zero_volume_count = data_length
+        
+        # VERIFICAÇÃO DE CONSISTÊNCIA TEMPORAL - Com proteção
+        try:
+            if hasattr(market_data.index, 'to_series'):
+                time_gaps = market_data.index.to_series().diff().dropna()
+                if len(time_gaps) > 0 and hasattr(time_gaps, 'mode'):
+                    mode_values = time_gaps.mode()
+                    if len(mode_values) > 0:
+                        irregular_gaps = time_gaps[time_gaps != mode_values[0]]
+                        if len(irregular_gaps) > 0:
+                            diagnosis['recommendations'].append(f"Detectados {len(irregular_gaps)} gaps temporais irregulares")
+        except Exception as e:
+            diagnosis['recommendations'].append(f"Não foi possível verificar consistência temporal: {str(e)}")
+        
+        # Gerar recomendações baseadas nos problemas encontrados
+        if diagnosis['price_issues']:
+            diagnosis['recommendations'].append("Problemas de preço detectados - verificar fonte de dados")
+        
+        if diagnosis['volume_issues']:
+            diagnosis['recommendations'].append("Problemas de volume detectados - considerar usar apenas análise de preço")
+        
+        # Gerar resumo final
+        status = "✅ DADOS OK" if diagnosis['data_sufficient'] and not diagnosis['price_issues'] and not diagnosis['volume_issues'] else "⚠️ PROBLEMAS DETECTADOS"
+        total_issues = len(diagnosis['price_issues']) + len(diagnosis['volume_issues'])
+        
+        diagnosis['summary'] = f"{status} - {total_issues} problema(s) encontrado(s)" if total_issues > 0 else f"{status}"
+        
+        # Prints informativos com tratamento de erro
+        try:
+            print(f"   💰 Preço: {current_price:.6f} (range: {price_range:.6f}, std: {price_std:.6f})")
+            print(f"   📈 Volume: atual={current_volume:.2f}, média={volume_mean:.2f}, mediana={volume_median:.2f}")
+        except:
+            print(f"   💰 Preço: {current_price} (range: {price_range}, std: {price_std})")
+            print(f"   📈 Volume: atual={current_volume}, média={volume_mean}, mediana={volume_median}")
+        
+        print(f"   🚨 Problemas: Preço={len(diagnosis['price_issues'])}, Volume={len(diagnosis['volume_issues'])}")
+        print(f"   📋 Status: {diagnosis['summary']}")
+        
+        if diagnosis['recommendations']:
+            print(f"   💡 Recomendações:")
+            for i, rec in enumerate(diagnosis['recommendations'], 1):
+                print(f"      {i}. {rec}")
     
-    data_length = len(market_data)
-    min_required = max(RSI_PERIOD, MACD_SLOW, BB_PERIOD, EMA_FILTER) + MIN_DATA_BUFFER
-    
-    print(f"🔍 DIAGNÓSTICO DE QUALIDADE DOS DADOS - {symbol}")
-    print(f"   📊 Quantidade: {data_length} velas (mínimo: {min_required})")
-    
-    # Verificar suficiência de dados
-    if data_length < min_required:
-        diagnosis['recommendations'].append(f"Aguardar mais dados (faltam {min_required - data_length} velas)")
-    else:
-        diagnosis['data_sufficient'] = True
-    
-    # Análise de preços
-    current_price = market_data['close'].iloc[-1]
-    price_range = market_data['close'].max() - market_data['close'].min()
-    price_std = market_data['close'].std()
-    
-    if current_price <= 0 or np.isnan(current_price):
-        diagnosis['price_issues'].append("Preço atual inválido")
-    
-    if price_range == 0:
-        diagnosis['price_issues'].append("Preços idênticos (sem movimento)")
-    elif price_std / current_price < 0.001:  # Variação < 0.1%
-        diagnosis['price_issues'].append("Volatilidade extremamente baixa")
-    
-    # Análise de volume
-    current_volume = market_data['volume'].iloc[-1]
-    volume_mean = market_data['volume'].mean()
-    volume_median = market_data['volume'].median()
-    zero_volume_count = (market_data['volume'] == 0).sum()
-    
-    if current_volume <= 0:
-        diagnosis['volume_issues'].append("Volume atual zero ou negativo")
-    
-    if volume_mean <= 0 or np.isnan(volume_mean):
-        diagnosis['volume_issues'].append("Volume médio inválido")
-    
-    if zero_volume_count > data_length * 0.5:  # Mais de 50% com volume zero
-        diagnosis['volume_issues'].append(f"Muitas velas sem volume ({zero_volume_count}/{data_length})")
-    
-    if volume_median <= 0:
-        diagnosis['volume_issues'].append("Volume mediano inválido")
-    
-    # Verificar consistência temporal
-    time_gaps = market_data.index.to_series().diff().dropna()
-    irregular_gaps = time_gaps[time_gaps != time_gaps.mode()[0]] if len(time_gaps) > 0 else []
-    
-    if len(irregular_gaps) > 0:
-        diagnosis['recommendations'].append(f"Detectados {len(irregular_gaps)} gaps temporais irregulares")
-    
-    # Gerar recomendações
-    if diagnosis['price_issues']:
-        diagnosis['recommendations'].append("Problemas de preço detectados - verificar fonte de dados")
-    
-    if diagnosis['volume_issues']:
-        diagnosis['recommendations'].append("Problemas de volume detectados - considerar usar apenas análise de preço")
-    
-    # Gerar resumo
-    status = "✅ DADOS OK" if diagnosis['data_sufficient'] and not diagnosis['price_issues'] and not diagnosis['volume_issues'] else "⚠️ PROBLEMAS DETECTADOS"
-    total_issues = len(diagnosis['price_issues']) + len(diagnosis['volume_issues'])
-    
-    diagnosis['summary'] = f"{status} - {total_issues} problema(s) encontrado(s)" if total_issues > 0 else f"{status}"
-    
-    print(f"   💰 Preço: {current_price:.6f} (range: {price_range:.6f}, std: {price_std:.6f})")
-    print(f"   📈 Volume: atual={current_volume:.2f}, média={volume_mean:.2f}, mediana={volume_median:.2f}")
-    print(f"   🚨 Problemas: Preço={len(diagnosis['price_issues'])}, Volume={len(diagnosis['volume_issues'])}")
-    print(f"   📋 Status: {diagnosis['summary']}")
-    
-    if diagnosis['recommendations']:
-        print(f"   💡 Recomendações:")
-        for i, rec in enumerate(diagnosis['recommendations'], 1):
-            print(f"      {i}. {rec}")
+    except Exception as e:
+        # Captura qualquer erro não tratado
+        diagnosis['price_issues'].append(f"Erro crítico na análise: {str(e)}")
+        diagnosis['summary'] = f"❌ ERRO CRÍTICO para {symbol}: {str(e)}"
+        print(f"🔍 DIAGNÓSTICO - {symbol}: ERRO CRÍTICO - {str(e)}")
     
     return diagnosis
 
@@ -524,38 +620,124 @@ def calculate_multi_timeframe_signal(multi_data: dict) -> dict:
 # =============================================================================
 
 def calculate_rsi(data: pd.Series, period: int = None) -> pd.Series:
-    """Calcula o Índice de Força Relativa (RSI) usando configurações centralizadas."""
-    if period is None:
-        period = RSI_PERIOD
-    
-    delta = data.diff()
-    gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+    """
+    Calcula o Índice de Força Relativa (RSI) usando configurações centralizadas.
+    VERSÃO ROBUSTA: Trata dados inválidos e casos extremos.
+    """
+    try:
+        if period is None:
+            try:
+                period = RSI_PERIOD
+            except NameError:
+                period = 14  # Fallback padrão
+        
+        # Verificações de entrada
+        if data is None or data.empty:
+            return pd.Series(dtype=float)
+        
+        if len(data) < period + 1:
+            return pd.Series([np.nan] * len(data), index=data.index)
+        
+        # Limpar dados inválidos
+        clean_data = data.dropna()
+        if len(clean_data) < period + 1:
+            return pd.Series([np.nan] * len(data), index=data.index)
+        
+        delta = clean_data.diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=period, min_periods=period).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=period, min_periods=period).mean()
 
-    rs = gain / loss
-    rsi = 100 - (100 / (1 + rs))
-    return rsi
+        # Evitar divisão por zero
+        rs = gain / loss.replace(0, np.nan)
+        rsi = 100 - (100 / (1 + rs))
+        
+        # Reindexar para o tamanho original se necessário
+        if len(rsi) != len(data):
+            rsi = rsi.reindex(data.index)
+        
+        return rsi
+        
+    except Exception as e:
+        print(f"⚠️ Erro no cálculo do RSI: {str(e)}")
+        return pd.Series([np.nan] * len(data), index=data.index)
 
 def calculate_macd(data: pd.Series, fast: int = None, slow: int = None, signal: int = None) -> dict:
-    """Calcula MACD usando configurações centralizadas."""
-    if fast is None:
-        fast = MACD_FAST
-    if slow is None:
-        slow = MACD_SLOW
-    if signal is None:
-        signal = MACD_SIGNAL
-    
-    ema_fast = data.ewm(span=fast).mean()
-    ema_slow = data.ewm(span=slow).mean()
-    macd_line = ema_fast - ema_slow
-    signal_line = macd_line.ewm(span=signal).mean()
-    histogram = macd_line - signal_line
-    
-    return {
-        'macd': macd_line,
-        'signal': signal_line,
-        'histogram': histogram
-    }
+    """
+    Calcula MACD usando configurações centralizadas.
+    VERSÃO ROBUSTA: Trata dados inválidos e casos extremos.
+    """
+    try:
+        if fast is None:
+            try:
+                fast = MACD_FAST
+            except NameError:
+                fast = 12  # Fallback padrão
+        if slow is None:
+            try:
+                slow = MACD_SLOW
+            except NameError:
+                slow = 26  # Fallback padrão
+        if signal is None:
+            try:
+                signal = MACD_SIGNAL
+            except NameError:
+                signal = 9  # Fallback padrão
+        
+        # Verificações de entrada
+        if data is None or data.empty:
+            empty_series = pd.Series(dtype=float)
+            return {
+                'macd': empty_series,
+                'signal': empty_series,
+                'histogram': empty_series
+            }
+        
+        min_required = max(slow, signal) + 5  # Buffer adicional
+        if len(data) < min_required:
+            nan_series = pd.Series([np.nan] * len(data), index=data.index)
+            return {
+                'macd': nan_series,
+                'signal': nan_series,
+                'histogram': nan_series
+            }
+        
+        # Limpar dados inválidos
+        clean_data = data.dropna()
+        if len(clean_data) < min_required:
+            nan_series = pd.Series([np.nan] * len(data), index=data.index)
+            return {
+                'macd': nan_series,
+                'signal': nan_series,
+                'histogram': nan_series
+            }
+        
+        # Calcular EMAs com min_periods para robustez
+        ema_fast = clean_data.ewm(span=fast, min_periods=fast).mean()
+        ema_slow = clean_data.ewm(span=slow, min_periods=slow).mean()
+        macd_line = ema_fast - ema_slow
+        signal_line = macd_line.ewm(span=signal, min_periods=signal).mean()
+        histogram = macd_line - signal_line
+        
+        # Reindexar para o tamanho original se necessário
+        if len(macd_line) != len(data):
+            macd_line = macd_line.reindex(data.index)
+            signal_line = signal_line.reindex(data.index)
+            histogram = histogram.reindex(data.index)
+        
+        return {
+            'macd': macd_line,
+            'signal': signal_line,
+            'histogram': histogram
+        }
+        
+    except Exception as e:
+        print(f"⚠️ Erro no cálculo do MACD: {str(e)}")
+        nan_series = pd.Series([np.nan] * len(data), index=data.index)
+        return {
+            'macd': nan_series,
+            'signal': nan_series,
+            'histogram': nan_series
+        }
 
 def calculate_bollinger_bands(data: pd.Series, period: int = None, std_dev: float = None) -> dict:
     """Calcula Bandas de Bollinger usando configurações centralizadas."""
@@ -596,26 +778,46 @@ def calculate_ema(data: pd.Series, short: int = None, long: int = None, filter_p
     }
 
 def analyze_rsi_signal(rsi_value: float) -> dict:
-    """Analisa sinal do RSI baseado nas configurações centralizadas."""
-    if np.isnan(rsi_value):
-        return {'signal': 'NEUTRO', 'strength': 0.0, 'description': 'RSI inválido'}
-    
-    if rsi_value <= RSI_OVERSOLD:
-        strength = (RSI_OVERSOLD - rsi_value) / RSI_OVERSOLD
-        return {
-            'signal': 'COMPRAR',
-            'strength': min(strength, 1.0),
-            'description': f'RSI sobrevendido ({rsi_value:.1f})'
-        }
-    elif rsi_value >= RSI_OVERBOUGHT:
-        strength = (rsi_value - RSI_OVERBOUGHT) / (100 - RSI_OVERBOUGHT)
-        return {
-            'signal': 'VENDER',
-            'strength': min(strength, 1.0),
-            'description': f'RSI sobrecomprado ({rsi_value:.1f})'
-        }
-    else:
-        return {'signal': 'NEUTRO', 'strength': 0.0, 'description': f'RSI neutro ({rsi_value:.1f})'}
+    """
+    Analisa sinal do RSI baseado nas configurações centralizadas.
+    VERSÃO ROBUSTA: Trata valores inválidos e casos extremos.
+    """
+    try:
+        # Verificar se o valor é válido
+        if pd.isna(rsi_value) or np.isnan(rsi_value) or np.isinf(rsi_value):
+            return {'signal': 'NEUTRO', 'strength': 0.0, 'description': 'RSI inválido (NaN/Inf)'}
+        
+        # Validar range do RSI (deve estar entre 0 e 100)
+        if rsi_value < 0 or rsi_value > 100:
+            return {'signal': 'NEUTRO', 'strength': 0.0, 'description': f'RSI fora do range válido ({rsi_value:.1f})'}
+        
+        # Usar fallbacks seguros para as constantes
+        try:
+            oversold = RSI_OVERSOLD
+            overbought = RSI_OVERBOUGHT
+        except NameError:
+            oversold = 30.0  # Fallback padrão
+            overbought = 70.0  # Fallback padrão
+        
+        if rsi_value <= oversold:
+            strength = (oversold - rsi_value) / oversold if oversold > 0 else 0.0
+            return {
+                'signal': 'COMPRAR',
+                'strength': min(max(strength, 0.0), 1.0),  # Clamp entre 0 e 1
+                'description': f'RSI sobrevendido ({rsi_value:.1f})'
+            }
+        elif rsi_value >= overbought:
+            strength = (rsi_value - overbought) / (100 - overbought) if overbought < 100 else 0.0
+            return {
+                'signal': 'VENDER',
+                'strength': min(max(strength, 0.0), 1.0),  # Clamp entre 0 e 1
+                'description': f'RSI sobrecomprado ({rsi_value:.1f})'
+            }
+        else:
+            return {'signal': 'NEUTRO', 'strength': 0.0, 'description': f'RSI neutro ({rsi_value:.1f})'}
+            
+    except Exception as e:
+        return {'signal': 'NEUTRO', 'strength': 0.0, 'description': f'Erro na análise RSI: {str(e)}'}
 
 def analyze_macd_signal(macd_data: dict) -> dict:
     """Analisa sinal do MACD."""
@@ -760,6 +962,7 @@ def analyze_ema_signal(current_price: float, ema_data: dict) -> dict:
 def calculate_integrated_signal(market_data: pd.DataFrame) -> dict:
     """
     Calcula sinal integrado usando os 4 indicadores técnicos com seus pesos configurados.
+    VERSÃO ROBUSTA: Trata erros de dados e cálculos falhados.
     
     Returns:
         dict: {
@@ -769,96 +972,207 @@ def calculate_integrated_signal(market_data: pd.DataFrame) -> dict:
             'weighted_score': float
         }
     """
-    # Requisito mínimo mais flexível - reduzir para funcionar com menos dados
-    # Requisito mínimo configurável através de settings
-    min_required = max(RSI_PERIOD, MACD_SLOW, BB_PERIOD, FALLBACK_EMA_FILTER) + MIN_DATA_BUFFER
-    
-    if market_data is None or len(market_data) < min_required:
+    try:
+        # Verificação inicial robusta
+        if market_data is None:
+            return {
+                'signal': 'NEUTRO',
+                'confidence': 0.0,
+                'indicators': {},
+                'weighted_score': 0.0,
+                'description': 'Dados nulos fornecidos'
+            }
+        
+        if market_data.empty:
+            return {
+                'signal': 'NEUTRO',
+                'confidence': 0.0,
+                'indicators': {},
+                'weighted_score': 0.0,
+                'description': 'DataFrame vazio fornecido'
+            }
+        
+        # Verificar colunas necessárias
+        if 'close' not in market_data.columns:
+            return {
+                'signal': 'NEUTRO',
+                'confidence': 0.0,
+                'indicators': {},
+                'weighted_score': 0.0,
+                'description': 'Coluna "close" ausente nos dados'
+            }
+        
+        # Requisito mínimo configurável através de settings com fallback seguro
+        try:
+            min_required = max(RSI_PERIOD, MACD_SLOW, BB_PERIOD, FALLBACK_EMA_FILTER) + MIN_DATA_BUFFER
+        except NameError:
+            # Fallback se as constantes não estão definidas
+            min_required = max(14, 26, 20, 30) + 3  # 33 velas mínimas (mais conservador)
+        
+        if len(market_data) < min_required:
+            return {
+                'signal': 'NEUTRO',
+                'confidence': 0.0,
+                'indicators': {},
+                'weighted_score': 0.0,
+                'description': f'Dados insuficientes para análise integrada (mín. {min_required}, atual: {len(market_data)})'
+            }
+        
+        # Verificar se o preço atual é válido
+        try:
+            current_price = market_data['close'].iloc[-1]
+            if pd.isna(current_price) or np.isnan(current_price) or np.isinf(current_price) or current_price <= 0:
+                return {
+                    'signal': 'NEUTRO',
+                    'confidence': 0.0,
+                    'indicators': {},
+                    'weighted_score': 0.0,
+                    'description': f'Preço atual inválido: {current_price}'
+                }
+        except Exception as e:
+            return {
+                'signal': 'NEUTRO',
+                'confidence': 0.0,
+                'indicators': {},
+                'weighted_score': 0.0,
+                'description': f'Erro ao acessar preço atual: {str(e)}'
+            }
+        
+        # 1. Calcular todos os indicadores com tratamento de erro
+        indicators_calculated = {}
+        
+        try:
+            rsi_values = calculate_rsi(market_data['close'])
+            rsi_signal = analyze_rsi_signal(rsi_values.iloc[-1]) if len(rsi_values) > 0 else {'signal': 'NEUTRO', 'strength': 0.0, 'description': 'RSI falhou'}
+            indicators_calculated['RSI'] = rsi_signal
+        except Exception as e:
+            indicators_calculated['RSI'] = {'signal': 'NEUTRO', 'strength': 0.0, 'description': f'Erro RSI: {str(e)}'}
+        
+        try:
+            macd_data = calculate_macd(market_data['close'])
+            macd_signal = analyze_macd_signal(macd_data)
+            indicators_calculated['MACD'] = macd_signal
+        except Exception as e:
+            indicators_calculated['MACD'] = {'signal': 'NEUTRO', 'strength': 0.0, 'description': f'Erro MACD: {str(e)}'}
+        
+        try:
+            bb_data = calculate_bollinger_bands(market_data['close'])
+            bb_signal = analyze_bollinger_signal(current_price, bb_data)
+            indicators_calculated['BB'] = bb_signal
+        except Exception as e:
+            indicators_calculated['BB'] = {'signal': 'NEUTRO', 'strength': 0.0, 'description': f'Erro BB: {str(e)}'}
+        
+        try:
+            ema_data = calculate_ema(market_data['close'])
+            ema_signal = analyze_ema_signal(current_price, ema_data)
+            indicators_calculated['EMA'] = ema_signal
+        except Exception as e:
+            indicators_calculated['EMA'] = {'signal': 'NEUTRO', 'strength': 0.0, 'description': f'Erro EMA: {str(e)}'}
+        
+        # 2. Definir pesos com fallback seguro
+        try:
+            signal_weights = {
+                'RSI': RSI_WEIGHT,
+                'MACD': MACD_WEIGHT,
+                'BB': BB_WEIGHT,
+                'EMA': EMA_WEIGHT
+            }
+        except NameError:
+            # Fallback se as constantes não estão definidas
+            signal_weights = {
+                'RSI': 0.25,
+                'MACD': 0.25,
+                'BB': 0.25,
+                'EMA': 0.25
+            }
+        
+        # 3. Calcular score ponderado com validação
+        weighted_score = 0.0
+        total_weight = 0.0
+        valid_indicators = 0
+        
+        for indicator, signal_data in indicators_calculated.items():
+            try:
+                weight = signal_weights.get(indicator, 0.0)
+                strength = signal_data.get('strength', 0.0)
+                signal = signal_data.get('signal', 'NEUTRO')
+                
+                # Validar valores
+                if pd.isna(strength) or np.isnan(strength) or np.isinf(strength):
+                    strength = 0.0
+                
+                if signal == 'COMPRAR':
+                    weighted_score += weight * strength
+                    valid_indicators += 1
+                elif signal == 'VENDER':
+                    weighted_score -= weight * strength
+                    valid_indicators += 1
+                
+                total_weight += weight
+            except Exception as e:
+                print(f"⚠️ Erro ao processar indicador {indicator}: {str(e)}")
+        
+        # 4. Determinar sinal final com thresholds seguros
+        try:
+            threshold_buy = INTEGRATED_SIGNAL_THRESHOLD_BUY
+            threshold_sell = INTEGRATED_SIGNAL_THRESHOLD_SELL
+            confidence_mult = CONFIDENCE_MULTIPLIER
+        except NameError:
+            # Fallback se as constantes não estão definidas
+            threshold_buy = 0.15
+            threshold_sell = -0.15
+            confidence_mult = 2.0
+        
+        if weighted_score > threshold_buy:
+            final_signal = 'COMPRAR'
+            confidence = min(weighted_score * confidence_mult, 1.0)
+        elif weighted_score < threshold_sell:
+            final_signal = 'VENDER'
+            confidence = min(abs(weighted_score) * confidence_mult, 1.0)
+        else:
+            final_signal = 'NEUTRO'
+            confidence = 0.0
+        
+        # 5. Criar descrição detalhada
+        indicator_descriptions = []
+        for indicator, signal_data in indicators_calculated.items():
+            if signal_data['signal'] != 'NEUTRO':
+                indicator_descriptions.append(f"{indicator}: {signal_data['description']}")
+        
+        # DEBUG: Mostrar detalhes dos indicadores
+        debug_details = []
+        for indicator, signal_data in indicators_calculated.items():
+            debug_details.append(f"{indicator}={signal_data['signal']}({signal_data['strength']:.2f})")
+        
+        description = f"Score: {weighted_score:.3f} ({valid_indicators}/4 indicadores válidos)"
+        if indicator_descriptions:
+            description += " | " + " | ".join(indicator_descriptions)
+        
+        debug_description = f"[{' | '.join(debug_details)}] -> {description}"
+        
+        return {
+            'signal': final_signal,
+            'confidence': confidence,
+            'indicators': indicators_calculated,
+            'weighted_score': weighted_score,
+            'description': description,
+            'debug_description': debug_description,
+            'weights_used': signal_weights,
+            'valid_indicators': valid_indicators
+        }
+        
+    except Exception as e:
+        # Captura qualquer erro não tratado na função
         return {
             'signal': 'NEUTRO',
             'confidence': 0.0,
             'indicators': {},
             'weighted_score': 0.0,
-            'description': f'Dados insuficientes para análise integrada (mín. {min_required}, atual: {len(market_data) if market_data is not None else 0})'
+            'description': f'Erro crítico na análise integrada: {str(e)}',
+            'debug_description': f'ERRO CRÍTICO: {str(e)}',
+            'weights_used': {},
+            'valid_indicators': 0
         }
-    
-    current_price = market_data['close'].iloc[-1]
-    
-    # 1. Calcular todos os indicadores
-    rsi_values = calculate_rsi(market_data['close'])
-    macd_data = calculate_macd(market_data['close'])
-    bb_data = calculate_bollinger_bands(market_data['close'])
-    ema_data = calculate_ema(market_data['close'])
-    
-    # 2. Analisar sinais individuais
-    rsi_signal = analyze_rsi_signal(rsi_values.iloc[-1])
-    macd_signal = analyze_macd_signal(macd_data)
-    bb_signal = analyze_bollinger_signal(current_price, bb_data)
-    ema_signal = analyze_ema_signal(current_price, ema_data)
-    
-    # 3. Calcular score ponderado
-    signal_weights = {
-        'RSI': RSI_WEIGHT,
-        'MACD': MACD_WEIGHT,
-        'BB': BB_WEIGHT,
-        'EMA': EMA_WEIGHT
-    }
-    
-    signals = {
-        'RSI': rsi_signal,
-        'MACD': macd_signal,
-        'BB': bb_signal,
-        'EMA': ema_signal
-    }
-    
-    weighted_score = 0.0
-    total_weight = 0.0
-    
-    for indicator, signal_data in signals.items():
-        weight = signal_weights[indicator]
-        strength = signal_data['strength']
-        
-        if signal_data['signal'] == 'COMPRAR':
-            weighted_score += weight * strength
-        elif signal_data['signal'] == 'VENDER':
-            weighted_score -= weight * strength
-        
-        total_weight += weight
-    
-    # 4. Determinar sinal final - Thresholds configuráveis
-    if weighted_score > INTEGRATED_SIGNAL_THRESHOLD_BUY:
-        final_signal = 'COMPRAR'
-        confidence = min(weighted_score * CONFIDENCE_MULTIPLIER, 1.0)
-    elif weighted_score < INTEGRATED_SIGNAL_THRESHOLD_SELL:
-        final_signal = 'VENDER'
-        confidence = min(abs(weighted_score) * CONFIDENCE_MULTIPLIER, 1.0)
-    else:
-        final_signal = 'NEUTRO'
-        confidence = 0.0
-    
-    # 5. Criar descrição detalhada
-    indicator_descriptions = []
-    for indicator, signal_data in signals.items():
-        if signal_data['signal'] != 'NEUTRO':
-            indicator_descriptions.append(f"{indicator}: {signal_data['description']}")
-    
-    # DEBUG: Mostrar detalhes dos indicadores
-    debug_details = []
-    for indicator, signal_data in signals.items():
-        debug_details.append(f"{indicator}={signal_data['signal']}({signal_data['strength']:.2f})")
-    
-    description = f"Score: {weighted_score:.3f} | " + " | ".join(indicator_descriptions)
-    debug_description = f"[{' | '.join(debug_details)}] -> {description}"
-    
-    return {
-        'signal': final_signal,
-        'confidence': confidence,
-        'indicators': signals,
-        'weighted_score': weighted_score,
-        'description': description,
-        'debug_description': debug_description,
-        'weights_used': signal_weights
-    }
 
 # =============================================================================
 # 3. FUNÇÕES AUXILIARES DE ANÁLISE COMPLEMENTARES
