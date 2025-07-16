@@ -187,8 +187,8 @@ WEBHOOK_URL = ''
 # =============================================================================
 
 # Threading
-MAX_WORKER_THREADS = 100
-ANALYSIS_THREADS = 20
+MAX_WORKER_THREADS = 1000
+ANALYSIS_THREADS = 100
 
 # Cache
 CACHE_ENABLED = True

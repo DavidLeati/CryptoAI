@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # run.py
 # Ponto de entrada principal para o CryptoAI Trading Bot
 
@@ -7,13 +6,15 @@ import os
 import argparse
 from pathlib import Path
 
-# Adicionar src ao Python path
+# Adicionar src e config ao Python path
 src_path = Path(__file__).parent / 'src'
+config_path = Path(__file__).parent / 'config'
 sys.path.insert(0, str(src_path))
+sys.path.insert(0, str(config_path))
 
 # Imports
 try:
-    from config.settings import get_config, validate_config, VERSION, APP_NAME
+    from settings import get_config, validate_config, VERSION, APP_NAME
     from core.main import main as run_core_bot
     from web.web_interface import app, socketio
 except ImportError as e:

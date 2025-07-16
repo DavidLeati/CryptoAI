@@ -1,44 +1,32 @@
-# requirements.txt
-# Dependências do CryptoAI Trading Bot
-
 # Trading e Exchange
-python-binance==1.0.19
+python-binance
 
 # Interface Web
-Flask==3.1.1
-Flask-SocketIO==5.5.1
+Flask
+Flask-SocketIO
 
 # Análise de Dados
-pandas==2.2.3
-numpy==1.26.4
-matplotlib==3.9.4
-seaborn==0.13.2
+pandas
+numpy
+matplotlib
+seaborn
 
 # Análise Técnica
-ta==0.11.0
-talib-binary==0.4.29
+ta
 
 # Sistema e Monitoramento
-psutil==7.0.0
-requests==2.32.3
+psutil
+requests
 
 # Utilitários
-python-dotenv==1.0.1
-colorama==0.4.6
+python-dotenv
+colorama
 
 # Logging e Debugging
-loguru==0.7.2
+loguru
 
 # Data/Time
-python-dateutil==2.9.0
+python-dateutil
 
 # JSON e Configuração
-pydantic==2.10.3
-
-# Opcional: Jupyter para análise
-# jupyter==1.1.1
-# ipywidgets==8.1.5
-
-# Opcional: Notification services
-# discord-webhook==1.3.1
-# python-telegram-bot==21.9
+pydantic

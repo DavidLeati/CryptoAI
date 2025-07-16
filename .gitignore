@@ -3,3 +3,4 @@ keys.py
 *.json
 *.log
 .vscode/
+venv

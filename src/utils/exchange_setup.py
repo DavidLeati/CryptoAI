@@ -8,7 +8,7 @@ import time
 import os
 
 import data 
-from keys import BINANCE_API, SECRET_API
+from src.keys import BINANCE_API, SECRET_API
 
 # =============================================================================
 # FUNÇÕES DE CONFIGURAÇÃO
@@ -19,7 +19,6 @@ def create_exchange_connection():
     print("Inicializando a conexão principal com a exchange...")
     try:
         # Conectando ao Binance Futures usando a biblioteca python-binance
-        # MUDANÇA: Removido testnet=True para usar a API real
         client = Client(BINANCE_API, SECRET_API)
         print("Conexão principal estabelecida com sucesso (API REAL).")
         return client
