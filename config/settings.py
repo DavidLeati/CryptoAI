@@ -41,7 +41,7 @@ ESTIMATED_SPREAD = 0.0001  # 0.01% spread médio estimado
 # Parâmetros de trading
 INITIAL_BALANCE = 100.0      # Saldo inicial para paper trading
 TRADE_VALUE_USD = 5.0        # Valor em USD por trade
-STOP_LOSS_PCT = 2.0          # Stop loss em percentual
+STOP_LOSS_PCT = 1.0          # Stop loss em percentual
 TAKE_PROFIT_PCT = 5.0        # Take profit em percentual
 LEVERAGE_LEVEL = 50          # Nível de alavancagem (1x = sem alavancagem)
 
@@ -82,27 +82,27 @@ LISTA_DE_ATIVOS = [
 # =============================================================================
 
 # RSI (Relative Strength Index)
-RSI_PERIOD = 14
-RSI_OVERSOLD = 20
-RSI_OVERBOUGHT = 80
-RSI_WEIGHT = 0.25
+RSI_PERIOD = 7 # Período do RSI (padrão = 14)
+RSI_OVERSOLD = 20 # Nível de sobrecompra do RSI (padrão = 20)
+RSI_OVERBOUGHT = 80 # Nível de sobrevenda do RSI (padrão = 80)
+RSI_WEIGHT = 0.25 # Peso do RSI na análise integrada (padrão = 0.25)
 
 # MACD (Moving Average Convergence Divergence)
-MACD_FAST = 12
-MACD_SLOW = 26
-MACD_SIGNAL = 9
-MACD_WEIGHT = 0.25
+MACD_FAST = 5 # Período rápido (padrão = 12)
+MACD_SLOW = 13 # Período lento (padrão = 26)
+MACD_SIGNAL = 6 # Período do sinal (padrão = 9)
+MACD_WEIGHT = 0.25 # Peso do MACD na análise integrada (padrão = 0.25)
 
 # Bandas de Bollinger
-BB_PERIOD = 20
-BB_STD = 2.0
-BB_WEIGHT = 0.25
+BB_PERIOD = 14 # Período das Bandas de Bollinger (padrão = 20)
+BB_STD = 2.0 # Desvio padrão para as bandas (padrão = 2.0)
+BB_WEIGHT = 0.25 # Peso das Bandas de Bollinger na análise integrada (padrão = 0.25)
 
 # Médias Móveis Exponenciais
-EMA_SHORT = 12
-EMA_LONG = 26
-EMA_FILTER = 200
-EMA_WEIGHT = 0.25
+EMA_SHORT = 7 # Período curto da EMA (padrão = 12)
+EMA_LONG = 14 # Período longo da EMA (padrão = 26)
+EMA_FILTER = 100 # Período da EMA para filtro de tendência (padrão = 200)
+EMA_WEIGHT = 0.25 # Peso da EMA na análise integrada (padrão = 0.25)
 
 # =============================================================================
 # CONFIGURAÇÕES DE ANÁLISE DE MOMENTUM (LEGACY)
@@ -174,9 +174,9 @@ TREND_ANALYSIS_LOOKBACK = 10              # Períodos para analisar contexto de 
 # CONFIGURAÇÕES DE TIMEFRAMES
 # =============================================================================
 
-PRIMARY_TIMEFRAME = '5m'      # Timeframe principal para análise (padrão = 5m)
-SECONDARY_TIMEFRAME = '15m'   # Timeframe secundário (padrão = 15m)
-CONFIRMATION_TIMEFRAME = '1h' # Timeframe para confirmação (padrão = 1h)
+PRIMARY_TIMEFRAME = '1m'      # Timeframe principal para análise (padrão = 5m)
+SECONDARY_TIMEFRAME = '5m'    # Timeframe secundário (padrão = 15m)
+CONFIRMATION_TIMEFRAME = '15m' # Timeframe para confirmação (padrão = 1h)
 
 # Intervalos de atualização
 UPDATE_INTERVAL = 30         # Segundos entre atualizações (padrão = 30)

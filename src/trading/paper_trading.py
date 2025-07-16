@@ -233,7 +233,7 @@ class PaperTradingSimulator:
             # Log detalhado do fechamento
             if TRADING_CONFIG.get('REALISTIC_FEES', False):
                 self.logger.info(f"Posição {side.upper()} fechada para {symbol} - {result_text}")
-                self.logger.info(f"   P&L Bruto: ${pnl_gross_usd:+.2f} ({pnl_pct:+.2f}%)")
+                self.logger.info(f"   P&L Bruto: ${pnl_gross_usd:+.2f} ({pnl_pct:+.2f}%) - Preço de Saída: ${adjusted_exit_price:.4f}")
                 self.logger.info(f"   Tarifas: ${total_fees:.2f} (Entrada: ${entry_fee:.2f} + Saída: ${exit_fee_usd:.2f})")
                 self.logger.info(f"   P&L Líquido: ${pnl_net_usd:+.2f} ({pnl_net_pct:+.2f}%)")
             else:

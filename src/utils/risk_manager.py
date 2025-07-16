@@ -15,7 +15,7 @@ sys.path.insert(0, str(config_path))
 try:
     from settings import (
         MAX_CONCURRENT_TRADES, MAX_DAILY_LOSS, MAX_POSITION_SIZE_PCT,
-        TRADE_VALUE_USD, STOP_LOSS_PCT, TAKE_PROFIT_PCT
+        TRADE_VALUE_USD, STOP_LOSS_PCT, TAKE_PROFIT_PCT, INITIAL_BALANCE
     )
 except ImportError:
     # Valores padrão se não conseguir importar
@@ -29,7 +29,7 @@ except ImportError:
 class RiskManager:
     """Gerenciador de risco para controlar exposição e perdas."""
     
-    def __init__(self, initial_balance: float = 1000.0):
+    def __init__(self, initial_balance: float = INITIAL_BALANCE):
         self.initial_balance = initial_balance
         self.current_balance = initial_balance
         self.daily_pnl = 0.0

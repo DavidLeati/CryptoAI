@@ -37,10 +37,6 @@ else:
 # 1. CONFIGURAÇÃO GERAL E RECURSOS COMPARTILHADOS
 # =============================================================================
 
-# =============================================================================
-# 1. CONFIGURAÇÃO GERAL E RECURSOS COMPARTILHADOS
-# =============================================================================
-
 # Converter lista de ativos do settings.py para formato do ccxt
 FORMATTED_ASSETS = [f"{asset.replace('USDT', '/USDT:USDT')}" for asset in LISTA_DE_ATIVOS]
 
