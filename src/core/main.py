@@ -67,7 +67,8 @@ def processar_ativo(symbol, client):
                     time.sleep(5)
                     continue
 
-                sinal_entrada = find_comprehensive_signal(market_data)
+                # Usar análise multi-timeframe passando client e symbol
+                sinal_entrada = find_comprehensive_signal(market_data, client=client, symbol=symbol)
                 
                 if sinal_entrada == 'COMPRAR':
                     print(f"🚨 SINAL DE COMPRA DETECTADO PARA {symbol}! 🚨")

@@ -261,7 +261,7 @@ CACHE_ENABLED = True
 CACHE_TTL = 300  # 5 minutos
 
 # Performance
-ENABLE_PROFILING = False
+ENABLE_PROFILING = True
 MEMORY_LIMIT_MB = 1024
 
 # =============================================================================

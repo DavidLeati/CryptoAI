@@ -1065,7 +1065,11 @@ def find_integrated_momentum_signal(market_data: pd.DataFrame) -> str:
     """
     Função principal de análise - agora redireciona para a versão legacy para compatibilidade.
     Para usar análise multi-timeframe, use find_integrated_momentum_signal_mta().
+    
+    AVISO: Esta função sempre usa análise single-timeframe.
+    Para análise multi-timeframe, use find_integrated_momentum_signal_mta(client, symbol, market_data)
     """
+    print("⚠️  USANDO ANÁLISE SINGLE-TIMEFRAME (LEGACY) - Para MTA, use find_integrated_momentum_signal_mta()")
     return find_integrated_momentum_signal_legacy(market_data)
 
 def find_momentum_signal_legacy(market_data: pd.DataFrame) -> str:
@@ -1442,17 +1446,36 @@ def find_enhanced_momentum_signal(market_data: pd.DataFrame) -> str:
     """
     return find_integrated_momentum_signal(market_data)
 
-def find_comprehensive_signal(market_data: pd.DataFrame) -> str:
+def find_comprehensive_signal(market_data: pd.DataFrame, client=None, symbol: str = None) -> str:
     """
     Análise mais abrangente que combina a análise integrada com padrões de reversão.
+    Agora suporta análise multi-timeframe quando client e symbol são fornecidos.
+    
+    Args:
+        market_data: Dados do timeframe primário
+        client: Cliente da exchange (opcional, para análise multi-timeframe)
+        symbol: Símbolo do ativo (opcional, para análise multi-timeframe)
+    
+    Returns:
+        str: 'COMPRAR'|'VENDER'|'AGUARDAR'
     """
-    # 1. Análise integrada como base
-    integrated_signal = find_integrated_momentum_signal(market_data)
+    # 1. Tentar análise multi-timeframe primeiro se client e symbol disponíveis
+    if client and symbol:
+        print(f"🚀 USANDO ANÁLISE MULTI-TIMEFRAME para {symbol}")
+        mta_signal = find_integrated_momentum_signal_mta(client, symbol, market_data)
+        if mta_signal != 'AGUARDAR':
+            return mta_signal
+        print(f"🔄 MTA retornou AGUARDAR, tentando análise complementar...")
+    else:
+        print("⚠️  Client/Symbol não fornecidos, usando análise single-timeframe")
+        
+    # 2. Análise integrada single-timeframe como fallback
+    integrated_signal = find_integrated_momentum_signal_legacy(market_data)
     
     if integrated_signal != 'AGUARDAR':
         return integrated_signal
     
-    # 2. Se não há sinal claro, verificar padrões de reversão
+    # 3. Se não há sinal claro, verificar padrões de reversão
     reversal_patterns = detect_reversal_patterns(market_data)
     volatility = calculate_volatility_score(market_data)
     
