@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 import sys
 from pathlib import Path
+from utils.data import fetch_data, RealTimeDataManager
 
 # Importar configurações centralizadas
 config_path = Path(__file__).parent.parent.parent / 'config'
@@ -144,57 +145,70 @@ def print_current_settings():
 # 1. FUNÇÕES DE ANÁLISE MULTI-TIMEFRAME
 # =============================================================================
 
-def fetch_multi_timeframe_data(client, symbol: str) -> dict:
+def fetch_multi_timeframe_data(manager: RealTimeDataManager, client, symbol: str) -> dict:
     """
-    Busca dados de múltiplos timeframes para análise integrada.
-    
+    Busca dados de múltiplos timeframes de forma robusta, priorizando o RealTimeDataManager
+    via WebSocket e utilizando a API REST como fallback.
+
+    Args:
+        manager (RealTimeDataManager): A instância global que gerencia os streams de dados.
+        client: O cliente da exchange, necessário para o fallback via API REST.
+        symbol (str): O símbolo do ativo (ex: 'BTC/USDT:USDT').
+
     Returns:
-        dict: {
-            'primary': DataFrame,     # 1m - para sinais precisos
-            'secondary': DataFrame,   # 5m - para contexto
-            'confirmation': DataFrame # 15m - para filtro de tendência
-        }
+        dict: Um dicionário contendo os DataFrames para cada timeframe, ou None se a coleta falhar.
+              Ex: {'primary': df_1m, 'secondary': df_5m, 'confirmation': df_15m}
     """
-    # Importar função de fetch aqui para evitar dependência circular
-    try:
-        from utils.data import fetch_data
-    except ImportError:
-        print("⚠️  Erro: Não foi possível importar fetch_data. Análise multi-timeframe desabilitada.")
+    if not manager or not client:
+        print("❌ Erro Crítico: RealTimeDataManager ou Cliente da Exchange não fornecido.")
         return None
-    
-    if not client:
-        print("⚠️  Cliente da exchange não fornecido para análise multi-timeframe")
-        return None
-    
+
     timeframes = {
-        'primary': PRIMARY_TIMEFRAME,
-        'secondary': SECONDARY_TIMEFRAME, 
-        'confirmation': CONFIRMATION_TIMEFRAME
+        'primary':      {'tf': PRIMARY_TIMEFRAME, 'limit': 100},
+        'secondary':    {'tf': SECONDARY_TIMEFRAME, 'limit': 200},
+        'confirmation': {'tf': CONFIRMATION_TIMEFRAME, 'limit': 300}
     }
-    
-    # Limites para cada timeframe - mais dados para timeframes maiores
-    limits = {
-        'primary': 100,      # 1m - últimas 100 velas (1h40min)
-        'secondary': 200,    # 5m - últimas 200 velas (16h40min)
-        'confirmation': 300  # 15m - últimas 300 velas (75 horas)
-    }
-    
     multi_data = {}
-    
-    for tf_name, tf_interval in timeframes.items():
-        try:
-            data = fetch_data(client, symbol, timeframe=tf_interval, limit=limits[tf_name])
-            if data is not None and len(data) > 0:
-                multi_data[tf_name] = data
-                print(f"✅ Dados {tf_interval} carregados: {len(data)} velas")
-            else:
-                print(f"⚠️  Falha ao carregar dados {tf_interval} para {symbol}")
+    use_fallback = False
+
+    # --- Etapa 1: Tentar obter dados do WebSocket (RealTimeDataManager) ---
+    for tf_name, tf_config in timeframes.items():
+        stream_key = f"{symbol}_{tf_config['tf']}"
+        df = manager.get_dataframe(stream_key)
+
+        # Validação crucial dos dados do buffer
+        min_required_bars = max(RSI_PERIOD, MACD_SLOW, BB_PERIOD, EMA_FILTER) + MIN_DATA_BUFFER
+        if df is None or df.empty or len(df) < min_required_bars:
+            print(f"⚠️  Dados WebSocket para {tf_config['tf']} insuficientes ou indisponíveis (Necessário: {min_required_bars}, Encontrado: {len(df) if df is not None else 0}).")
+            use_fallback = True
+            break
+        
+        multi_data[tf_name] = df
+
+    # --- Etapa 2: Se o WebSocket falhou ou os dados são insuficientes, usar API REST ---
+    if use_fallback:
+        print(f"🔄 Acionando fallback para API REST para {symbol}...")
+        multi_data = {}  # Limpa dados parciais do WebSocket
+        for tf_name, tf_config in timeframes.items():
+            try:
+                # Usa a função original de fetch via API
+                data_from_api = fetch_data(client, symbol, timeframe=tf_config['tf'], limit=tf_config['limit'])
+                if data_from_api is None or data_from_api.empty:
+                    print(f"❌ Falha crítica no fallback da API para {symbol} no timeframe {tf_config['tf']}.")
+                    return None # Falha total se o fallback também não funcionar
+                multi_data[tf_name] = data_from_api
+            except Exception as e:
+                print(f"❌ Erro catastrófico ao buscar dados de fallback para {symbol} ({tf_config['tf']}): {e}")
                 return None
-        except Exception as e:
-            print(f"❌ Erro ao buscar dados {tf_interval}: {e}")
-            return None
-    
-    return multi_data if len(multi_data) == 3 else None
+        print(f"✅ Dados para {symbol} obtidos com sucesso via API REST.")
+        return multi_data
+
+    # --- Etapa 3: Sucesso na coleta via WebSocket ---
+    if not use_fallback:
+        # print(f"✅ Dados para {symbol} obtidos com sucesso via WebSocket.")
+        return multi_data
+
+    return None # Caso algo inesperado aconteça
 
 def analyze_higher_timeframe_trend(confirmation_data: pd.DataFrame) -> dict:
     """

@@ -14,12 +14,12 @@ sys.path.insert(0, str(config_path))
 from settings import (
     PAPER_TRADING_MODE, TRADE_VALUE_USD, STOP_LOSS_PCT, TAKE_PROFIT_PCT,
     LEVERAGE_LEVEL, LISTA_DE_ATIVOS, INITIAL_BALANCE, UPDATE_INTERVAL, MAX_CONCURRENT_TRADES,
-    PRIMARY_TIMEFRAME, RSI_PERIOD, MACD_FAST, MACD_SLOW, BB_PERIOD
+    PRIMARY_TIMEFRAME, SECONDARY_TIMEFRAME, CONFIRMATION_TIMEFRAME, RSI_PERIOD, MACD_FAST, MACD_SLOW, BB_PERIOD
 )
 
 # Importando as funções dos nossos módulos especialistas
 from utils.exchange_setup import create_exchange_connection, setup_leverage_for_symbol, test_api_connection, check_account_mode
-from utils.data import fetch_data
+from utils.data import fetch_data, RealTimeDataManager
 from analysis.analysis import find_comprehensive_signal, find_comprehensive_exit_signal
 
 # Importar funções de trading (real ou simulado conforme configuração)
@@ -118,6 +118,8 @@ def processar_ativo(symbol, client):
 # 3. O MAESTRO (FUNÇÃO PRINCIPAL)
 # =============================================================================
 
+realtime_data_manager = RealTimeDataManager()
+
 def main():
     """
     Função principal que prepara o ambiente e dispara as threads de análise.
@@ -141,7 +143,15 @@ def main():
         return
 
     # 3. Verifica o modo da conta (Multi-Assets vs Single-Asset)
-    account_mode = check_account_mode(client)
+    check_account_mode(client)
+
+    # 4. Inicia os streams de dados em tempo real
+    print("🚀 Iniciando todos os streams de dados em tempo real...")
+    timeframes_necessarios = [PRIMARY_TIMEFRAME, SECONDARY_TIMEFRAME, CONFIRMATION_TIMEFRAME]
+    for symbol in FORMATTED_ASSETS:
+        for tf in timeframes_necessarios:
+            realtime_data_manager.start_stream(symbol, tf, limit=300)
+    print("✅ Todos os streams foram iniciados.")
 
     # 4. Cria e inicia uma thread para cada ativo na watchlist
     threads = []
