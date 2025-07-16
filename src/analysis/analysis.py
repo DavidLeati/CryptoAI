@@ -101,7 +101,7 @@ except ImportError:
     CONFIRMATION_TIMEFRAME = '15m'
 
 # =============================================================================
-# 1. FUNÇÕES DE DEBUG E CONFIGURAÇÃO
+# 0. FUNÇÕES DE DEBUG E CONFIGURAÇÃO
 # =============================================================================
 
 def print_current_settings():
@@ -141,7 +141,7 @@ def print_current_settings():
     print(f"{'='*60}\n")
 
 # =============================================================================
-# 2. FUNÇÕES DE ANÁLISE MULTI-TIMEFRAME
+# 1. FUNÇÕES DE ANÁLISE MULTI-TIMEFRAME
 # =============================================================================
 
 def fetch_multi_timeframe_data(client, symbol: str) -> dict:
@@ -391,7 +391,7 @@ def calculate_multi_timeframe_signal(multi_data: dict) -> dict:
     }
 
 # =============================================================================
-# 3. FUNÇÕES DOS INDICADORES TÉCNICOS CENTRALIZADOS
+# 2. FUNÇÕES DOS INDICADORES TÉCNICOS CENTRALIZADOS
 # =============================================================================
 
 def calculate_rsi(data: pd.Series, period: int = None) -> pd.Series:
@@ -944,11 +944,7 @@ def calculate_volatility_score(market_data: pd.DataFrame, period: int = None) ->
     return volatility
 
 # =============================================================================
-# 3. FUNÇÕES PRINCIPAIS DE SINALIZAÇÃO
-# =============================================================================
-
-# =============================================================================
-# 5. FUNÇÕES PRINCIPAIS DE SINALIZAÇÃO - COM ANÁLISE MULTI-TIMEFRAME
+# 4. FUNÇÕES PRINCIPAIS DE SINALIZAÇÃO - COM ANÁLISE MULTI-TIMEFRAME
 # =============================================================================
 
 def find_integrated_momentum_signal_mta(client, symbol: str, market_data: pd.DataFrame = None) -> str:
