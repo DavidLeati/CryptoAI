@@ -105,6 +105,72 @@ EMA_FILTER = 200
 EMA_WEIGHT = 0.25
 
 # =============================================================================
+# CONFIGURAÇÕES DE ANÁLISE DE MOMENTUM (LEGACY)
+# =============================================================================
+
+# Parâmetros de entrada (Momentum)
+PRICE_CHANGE_THRESHOLD = 0.5        # % mínima de mudança de preço para detectar momentum
+PRICE_CHANGE_PERIOD_MINUTES = 3     # Período em minutos para calcular mudança de preço
+VOLUME_MULTIPLIER_THRESHOLD = 2.0   # Multiplicador mínimo de volume comparado à média
+VOLUME_AVERAGE_PERIOD_MINUTES = 20  # Período em minutos para calcular volume médio
+
+# Parâmetros de saída (Exaustão)
+RSI_OVERBOUGHT_EXIT = 75.0          # Nível RSI para fechar posições LONGs
+RSI_OVERSOLD_EXIT = 25.0            # Nível RSI para fechar posições SHORTs
+
+# Parâmetros de detecção de exaustão de momentum
+MOMENTUM_EXHAUSTION_PERIOD = 5      # Períodos para verificar perda de momentum
+VOLUME_DECLINE_THRESHOLD = 0.5      # Multiplicador que indica queda de volume
+
+# =============================================================================
+# CONFIGURAÇÕES DE ANÁLISE INTEGRADA
+# =============================================================================
+
+# Thresholds para sinais integrados
+INTEGRATED_SIGNAL_THRESHOLD_BUY = 0.15   # Score mínimo para sinal de COMPRA
+INTEGRATED_SIGNAL_THRESHOLD_SELL = -0.15 # Score máximo para sinal de VENDA
+CONFIDENCE_MULTIPLIER = 2.0              # Multiplicador para amplificar confiança
+
+# Thresholds de confiança
+HIGH_CONFIDENCE_THRESHOLD = 0.8          # Confiança alta - aceita sem confirmação
+MEDIUM_CONFIDENCE_THRESHOLD = 0.5        # Confiança média - verifica consenso
+CONSENSUS_INDICATORS_REQUIRED = 3        # Mínimo de indicadores concordando para consenso
+
+# Confirmação de momentum - fatores de redução dos thresholds
+MOMENTUM_CONFIRMATION_PRICE_FACTOR = 0.3  # 30% do threshold de preço
+MOMENTUM_CONFIRMATION_VOLUME_FACTOR = 0.5 # 50% do threshold de volume
+
+# Análise de saída integrada
+EXIT_CONFIDENCE_THRESHOLD = 0.4          # Confiança mínima para sugerir saída
+EXIT_CONFIRMATION_THRESHOLD = 0.6        # Confiança para saída sem confirmação momentum
+RSI_CRITICAL_STRENGTH = 0.6              # Força mínima do RSI para saída crítica
+
+# Requisitos de dados
+MIN_DATA_BUFFER = 3                       # Buffer mínimo além do maior período
+FALLBACK_EMA_FILTER = 30                  # EMA filter alternativo se muito grande
+
+# =============================================================================
+# CONFIGURAÇÕES DE PADRÕES DE REVERSÃO
+# =============================================================================
+
+# Volatilidade para padrões de reversão
+MIN_VOLATILITY_FOR_PATTERNS = 0.02       # Volatilidade mínima para confiar em padrões
+
+# Contexto de tendência
+TREND_CHANGE_THRESHOLD = 0.02             # 2% de mudança para definir tendência
+
+# Divergência preço-volume
+DIVERGENCE_PRICE_THRESHOLD = 0.01         # 1% mudança de preço
+DIVERGENCE_VOLUME_THRESHOLD = 0.2         # 20% mudança de volume
+DIVERGENCE_LOOKBACK_PERIODS = 10          # Períodos para analisar divergência
+
+# Volatilidade
+VOLATILITY_CALCULATION_PERIOD = 20        # Períodos para calcular volatilidade
+
+# Análise de tendência
+TREND_ANALYSIS_LOOKBACK = 10              # Períodos para analisar contexto de tendência
+
+# =============================================================================
 # CONFIGURAÇÕES DE TIMEFRAMES
 # =============================================================================
 

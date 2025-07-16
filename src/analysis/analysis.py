@@ -13,13 +13,35 @@ sys.path.insert(0, str(config_path))
 
 try:
     from settings import (
+        # Indicadores técnicos centralizados
         RSI_PERIOD, RSI_OVERSOLD, RSI_OVERBOUGHT, RSI_WEIGHT,
         MACD_FAST, MACD_SLOW, MACD_SIGNAL, MACD_WEIGHT,
         BB_PERIOD, BB_STD, BB_WEIGHT,
-        EMA_SHORT, EMA_LONG, EMA_FILTER, EMA_WEIGHT
+        EMA_SHORT, EMA_LONG, EMA_FILTER, EMA_WEIGHT,
+        
+        # Parâmetros de momentum legacy
+        PRICE_CHANGE_THRESHOLD, PRICE_CHANGE_PERIOD_MINUTES,
+        VOLUME_MULTIPLIER_THRESHOLD, VOLUME_AVERAGE_PERIOD_MINUTES,
+        RSI_OVERBOUGHT_EXIT, RSI_OVERSOLD_EXIT,
+        MOMENTUM_EXHAUSTION_PERIOD, VOLUME_DECLINE_THRESHOLD,
+        
+        # Configurações de análise integrada
+        INTEGRATED_SIGNAL_THRESHOLD_BUY, INTEGRATED_SIGNAL_THRESHOLD_SELL,
+        CONFIDENCE_MULTIPLIER, HIGH_CONFIDENCE_THRESHOLD, MEDIUM_CONFIDENCE_THRESHOLD,
+        CONSENSUS_INDICATORS_REQUIRED, MOMENTUM_CONFIRMATION_PRICE_FACTOR,
+        MOMENTUM_CONFIRMATION_VOLUME_FACTOR, EXIT_CONFIDENCE_THRESHOLD,
+        EXIT_CONFIRMATION_THRESHOLD, RSI_CRITICAL_STRENGTH,
+        MIN_DATA_BUFFER, FALLBACK_EMA_FILTER,
+        
+        # Configurações de padrões e análises
+        MIN_VOLATILITY_FOR_PATTERNS, TREND_CHANGE_THRESHOLD,
+        DIVERGENCE_PRICE_THRESHOLD, DIVERGENCE_VOLUME_THRESHOLD,
+        DIVERGENCE_LOOKBACK_PERIODS, VOLATILITY_CALCULATION_PERIOD,
+        TREND_ANALYSIS_LOOKBACK
     )
 except ImportError:
     # Valores padrão se não conseguir importar
+    # Indicadores técnicos
     RSI_PERIOD = 14
     RSI_OVERSOLD = 30
     RSI_OVERBOUGHT = 70
@@ -35,25 +57,80 @@ except ImportError:
     EMA_LONG = 26
     EMA_FILTER = 200
     EMA_WEIGHT = 0.25
+    
+    # Momentum legacy
+    PRICE_CHANGE_THRESHOLD = 0.5
+    PRICE_CHANGE_PERIOD_MINUTES = 3
+    VOLUME_MULTIPLIER_THRESHOLD = 2.0
+    VOLUME_AVERAGE_PERIOD_MINUTES = 20
+    RSI_OVERBOUGHT_EXIT = 75.0
+    RSI_OVERSOLD_EXIT = 25.0
+    MOMENTUM_EXHAUSTION_PERIOD = 5
+    VOLUME_DECLINE_THRESHOLD = 0.5
+    
+    # Análise integrada
+    INTEGRATED_SIGNAL_THRESHOLD_BUY = 0.15
+    INTEGRATED_SIGNAL_THRESHOLD_SELL = -0.15
+    CONFIDENCE_MULTIPLIER = 2.0
+    HIGH_CONFIDENCE_THRESHOLD = 0.8
+    MEDIUM_CONFIDENCE_THRESHOLD = 0.5
+    CONSENSUS_INDICATORS_REQUIRED = 3
+    MOMENTUM_CONFIRMATION_PRICE_FACTOR = 0.3
+    MOMENTUM_CONFIRMATION_VOLUME_FACTOR = 0.5
+    EXIT_CONFIDENCE_THRESHOLD = 0.4
+    EXIT_CONFIRMATION_THRESHOLD = 0.6
+    RSI_CRITICAL_STRENGTH = 0.6
+    MIN_DATA_BUFFER = 3
+    FALLBACK_EMA_FILTER = 30
+    
+    # Padrões e análises
+    MIN_VOLATILITY_FOR_PATTERNS = 0.02
+    TREND_CHANGE_THRESHOLD = 0.02
+    DIVERGENCE_PRICE_THRESHOLD = 0.01
+    DIVERGENCE_VOLUME_THRESHOLD = 0.2
+    DIVERGENCE_LOOKBACK_PERIODS = 10
+    VOLATILITY_CALCULATION_PERIOD = 20
+    TREND_ANALYSIS_LOOKBACK = 10
 
 # =============================================================================
-# 1. PARÂMETROS DAS ESTRATÉGIAS (LEGADOS - MANTER COMPATIBILIDADE)
+# 1. FUNÇÕES DE DEBUG E CONFIGURAÇÃO
 # =============================================================================
 
-# --- Parâmetros de ENTRADA (Momentum) ---
-PRICE_CHANGE_THRESHOLD = 0.5  # Reduzido para capturar movimentos menores
-PRICE_CHANGE_PERIOD_MINUTES = 3  # Período menor para reação mais rápida
-VOLUME_MULTIPLIER_THRESHOLD = 2.0  # Reduzido para ser mais sensível
-VOLUME_AVERAGE_PERIOD_MINUTES = 20  # Período menor para detecção mais ágil
-
-# --- Parâmetros de SAÍDA (Exaustão) - Usar configurações centralizadas
-RSI_OVERBOUGHT_EXIT = 75.0  # Nível mais conservador para fechar LONGs
-RSI_OVERSOLD_EXIT = 25.0    # Nível mais conservador para fechar SHORTs
-
-# --- Parâmetros adicionais para detecção de exaustão ---
-MOMENTUM_EXHAUSTION_PERIOD = 5  # Períodos para verificar perda de momentum
-VOLUME_DECLINE_THRESHOLD = 0.5  # Multiplicador que indica queda de volume
-
+def print_current_settings():
+    """
+    Imprime as configurações atuais sendo utilizadas pelo sistema de análise.
+    """
+    print(f"\n{'='*60}")
+    print(f"⚙️  CONFIGURAÇÕES ATUAIS DO SISTEMA DE ANÁLISE")
+    print(f"{'='*60}")
+    
+    print(f"\n📊 INDICADORES TÉCNICOS:")
+    print(f"   RSI: período={RSI_PERIOD}, oversold={RSI_OVERSOLD}, overbought={RSI_OVERBOUGHT}, peso={RSI_WEIGHT}")
+    print(f"   MACD: fast={MACD_FAST}, slow={MACD_SLOW}, signal={MACD_SIGNAL}, peso={MACD_WEIGHT}")
+    print(f"   BB: período={BB_PERIOD}, std={BB_STD}, peso={BB_WEIGHT}")
+    print(f"   EMA: short={EMA_SHORT}, long={EMA_LONG}, filter={EMA_FILTER}, peso={EMA_WEIGHT}")
+    
+    print(f"\n🚀 MOMENTUM LEGACY:")
+    print(f"   Mudança preço: threshold={PRICE_CHANGE_THRESHOLD}%, período={PRICE_CHANGE_PERIOD_MINUTES}min")
+    print(f"   Volume: multiplicador={VOLUME_MULTIPLIER_THRESHOLD}x, período médio={VOLUME_AVERAGE_PERIOD_MINUTES}min")
+    print(f"   RSI saída: overbought={RSI_OVERBOUGHT_EXIT}, oversold={RSI_OVERSOLD_EXIT}")
+    print(f"   Exaustão: período={MOMENTUM_EXHAUSTION_PERIOD}, queda volume={VOLUME_DECLINE_THRESHOLD}")
+    
+    print(f"\n🎯 ANÁLISE INTEGRADA:")
+    print(f"   Thresholds: compra={INTEGRATED_SIGNAL_THRESHOLD_BUY}, venda={INTEGRATED_SIGNAL_THRESHOLD_SELL}")
+    print(f"   Confiança: multiplicador={CONFIDENCE_MULTIPLIER}, alta={HIGH_CONFIDENCE_THRESHOLD}, média={MEDIUM_CONFIDENCE_THRESHOLD}")
+    print(f"   Consenso: indicadores={CONSENSUS_INDICATORS_REQUIRED}/4")
+    print(f"   Confirmação: preço={MOMENTUM_CONFIRMATION_PRICE_FACTOR}, volume={MOMENTUM_CONFIRMATION_VOLUME_FACTOR}")
+    print(f"   Saída: threshold={EXIT_CONFIDENCE_THRESHOLD}, confirmação={EXIT_CONFIRMATION_THRESHOLD}")
+    print(f"   RSI crítico: força={RSI_CRITICAL_STRENGTH}")
+    print(f"   Dados: buffer={MIN_DATA_BUFFER}, EMA fallback={FALLBACK_EMA_FILTER}")
+    
+    print(f"\n📈 PADRÕES E ANÁLISES:")
+    print(f"   Volatilidade mín: {MIN_VOLATILITY_FOR_PATTERNS}")
+    print(f"   Tendência: threshold={TREND_CHANGE_THRESHOLD}, lookback={TREND_ANALYSIS_LOOKBACK}")
+    print(f"   Divergência: preço={DIVERGENCE_PRICE_THRESHOLD}, volume={DIVERGENCE_VOLUME_THRESHOLD}, períodos={DIVERGENCE_LOOKBACK_PERIODS}")
+    print(f"   Volatilidade: período={VOLATILITY_CALCULATION_PERIOD}")
+    print(f"{'='*60}\n")
 
 # =============================================================================
 # 2. FUNÇÕES DOS INDICADORES TÉCNICOS CENTRALIZADOS
@@ -305,8 +382,9 @@ def calculate_integrated_signal(market_data: pd.DataFrame) -> dict:
             'weighted_score': float
         }
     """
-    # Requisito mínimo mais flexível - usar o maior período + buffer mínimo
-    min_required = max(RSI_PERIOD, MACD_SLOW, BB_PERIOD, min(EMA_FILTER, 50)) + 5
+    # Requisito mínimo mais flexível - reduzir para funcionar com menos dados
+    # Requisito mínimo configurável através de settings
+    min_required = max(RSI_PERIOD, MACD_SLOW, BB_PERIOD, FALLBACK_EMA_FILTER) + MIN_DATA_BUFFER
     
     if market_data is None or len(market_data) < min_required:
         return {
@@ -360,13 +438,13 @@ def calculate_integrated_signal(market_data: pd.DataFrame) -> dict:
         
         total_weight += weight
     
-    # 4. Determinar sinal final
-    if weighted_score > 0.3:
+    # 4. Determinar sinal final - Thresholds configuráveis
+    if weighted_score > INTEGRATED_SIGNAL_THRESHOLD_BUY:
         final_signal = 'COMPRAR'
-        confidence = min(weighted_score, 1.0)
-    elif weighted_score < -0.3:
+        confidence = min(weighted_score * CONFIDENCE_MULTIPLIER, 1.0)
+    elif weighted_score < INTEGRATED_SIGNAL_THRESHOLD_SELL:
         final_signal = 'VENDER'
-        confidence = min(abs(weighted_score), 1.0)
+        confidence = min(abs(weighted_score) * CONFIDENCE_MULTIPLIER, 1.0)
     else:
         final_signal = 'NEUTRO'
         confidence = 0.0
@@ -377,7 +455,13 @@ def calculate_integrated_signal(market_data: pd.DataFrame) -> dict:
         if signal_data['signal'] != 'NEUTRO':
             indicator_descriptions.append(f"{indicator}: {signal_data['description']}")
     
+    # DEBUG: Mostrar detalhes dos indicadores
+    debug_details = []
+    for indicator, signal_data in signals.items():
+        debug_details.append(f"{indicator}={signal_data['signal']}({signal_data['strength']:.2f})")
+    
     description = f"Score: {weighted_score:.3f} | " + " | ".join(indicator_descriptions)
+    debug_description = f"[{' | '.join(debug_details)}] -> {description}"
     
     return {
         'signal': final_signal,
@@ -385,6 +469,7 @@ def calculate_integrated_signal(market_data: pd.DataFrame) -> dict:
         'indicators': signals,
         'weighted_score': weighted_score,
         'description': description,
+        'debug_description': debug_description,
         'weights_used': signal_weights
     }
 
@@ -392,13 +477,16 @@ def calculate_integrated_signal(market_data: pd.DataFrame) -> dict:
 # 3. FUNÇÕES AUXILIARES DE ANÁLISE COMPLEMENTARES
 # =============================================================================
 
-def analyze_volume_price_divergence(market_data: pd.DataFrame, lookback_periods: int = 10) -> dict:
+def analyze_volume_price_divergence(market_data: pd.DataFrame, lookback_periods: int = None) -> dict:
     """
     Analisa divergências entre preço e volume que podem indicar reversões.
     
     Returns:
         dict: {'bullish_divergence': bool, 'bearish_divergence': bool, 'strength': float}
     """
+    if lookback_periods is None:
+        lookback_periods = DIVERGENCE_LOOKBACK_PERIODS
+        
     if len(market_data) < lookback_periods + 5:
         return {'bullish_divergence': False, 'bearish_divergence': False, 'strength': 0}
     
@@ -415,10 +503,10 @@ def analyze_volume_price_divergence(market_data: pd.DataFrame, lookback_periods:
     volume_trend = (recent_data['volume'].iloc[-1] - recent_data['volume'].iloc[0]) / recent_data['volume'].iloc[0]
     
     # Divergência baixista: preço subindo, volume caindo
-    bearish_divergence = price_trend > 0.01 and volume_trend < -0.2
+    bearish_divergence = price_trend > DIVERGENCE_PRICE_THRESHOLD and volume_trend < -DIVERGENCE_VOLUME_THRESHOLD
     
     # Divergência altista: preço caindo, volume subindo  
-    bullish_divergence = price_trend < -0.01 and volume_trend > 0.2
+    bullish_divergence = price_trend < -DIVERGENCE_PRICE_THRESHOLD and volume_trend > DIVERGENCE_VOLUME_THRESHOLD
     
     return {
         'bullish_divergence': bullish_divergence,
@@ -472,8 +560,11 @@ def detect_reversal_patterns(market_data: pd.DataFrame) -> dict:
     
     return {'bullish_reversal': False, 'bearish_reversal': False, 'pattern_name': 'none'}
 
-def analyze_trend_context(market_data: pd.DataFrame, lookback: int = 10) -> str:
+def analyze_trend_context(market_data: pd.DataFrame, lookback: int = None) -> str:
     """Analisa o contexto de tendência para os últimos períodos"""
+    if lookback is None:
+        lookback = TREND_ANALYSIS_LOOKBACK
+        
     if len(market_data) < lookback:
         return 'sideways'
     
@@ -483,17 +574,20 @@ def analyze_trend_context(market_data: pd.DataFrame, lookback: int = 10) -> str:
     
     trend_change = (last_close - first_close) / first_close
     
-    if trend_change > 0.02:  # 2% de alta
+    if trend_change > TREND_CHANGE_THRESHOLD:  # Configurável via settings
         return 'uptrend'
-    elif trend_change < -0.02:  # 2% de baixa
+    elif trend_change < -TREND_CHANGE_THRESHOLD:  # Configurável via settings
         return 'downtrend'
     else:
         return 'sideways'
 
-def calculate_volatility_score(market_data: pd.DataFrame, period: int = 20) -> float:
+def calculate_volatility_score(market_data: pd.DataFrame, period: int = None) -> float:
     """
     Calcula uma pontuação de volatilidade baseada no desvio padrão dos retornos.
     """
+    if period is None:
+        period = VOLATILITY_CALCULATION_PERIOD
+        
     if len(market_data) < period:
         return 0.0
     
@@ -517,6 +611,24 @@ def find_integrated_momentum_signal(market_data: pd.DataFrame) -> str:
     # 1. Análise técnica integrada usando os 4 indicadores
     integrated_analysis = calculate_integrated_signal(market_data)
     
+    # DEBUG: Sempre mostrar resultado da análise integrada
+    print(f"🔍 ANÁLISE INTEGRADA: {integrated_analysis['signal']} | "
+          f"Score={integrated_analysis['weighted_score']:.3f} | "
+          f"Confiança={integrated_analysis['confidence']:.2f}")
+    
+    # DEBUG: Mostrar detalhes dos indicadores se disponível
+    if 'debug_description' in integrated_analysis:
+        print(f"   ➤ Detalhes: {integrated_analysis['debug_description']}")
+    
+    # Se há dados insuficientes, usar fallback diretamente
+    if 'Dados insuficientes' in integrated_analysis.get('description', ''):
+        print(f"⚠️  {integrated_analysis['description']}")
+        momentum_signal = find_momentum_signal_legacy(market_data)
+        if momentum_signal != 'AGUARDAR':
+            print(f"📈 FALLBACK: Usando sinal de momentum tradicional - {momentum_signal}")
+            return momentum_signal
+        return 'AGUARDAR'
+    
     # 2. Se há sinal claro nos indicadores técnicos, confirmar com momentum
     if integrated_analysis['signal'] != 'NEUTRO':
         momentum_confirmation = analyze_momentum_confirmation(market_data, integrated_analysis['signal'])
@@ -528,11 +640,26 @@ def find_integrated_momentum_signal(market_data: pd.DataFrame) -> str:
             return integrated_analysis['signal']
         else:
             # Se confiança for muito alta, aceitar mesmo sem confirmação de momentum
-            if integrated_analysis['confidence'] >= 0.8:
+            if integrated_analysis['confidence'] >= HIGH_CONFIDENCE_THRESHOLD:
                 print(f"✅ SINAL INTEGRADO DE ALTA CONFIANÇA ({integrated_analysis['signal']}): "
                       f"Confiança={integrated_analysis['confidence']:.2f} | "
                       f"{integrated_analysis['description']}")
                 return integrated_analysis['signal']
+            # Se confiança for moderada mas todos indicadores apontam na mesma direção
+            elif integrated_analysis['confidence'] >= MEDIUM_CONFIDENCE_THRESHOLD:
+                # Contar quantos indicadores concordam
+                signals_list = [data['signal'] for data in integrated_analysis['indicators'].values()]
+                target_signal = integrated_analysis['signal']
+                agreement_count = sum(1 for s in signals_list if s == target_signal)
+                
+                if agreement_count >= CONSENSUS_INDICATORS_REQUIRED:
+                    print(f"✅ SINAL INTEGRADO POR CONSENSO ({integrated_analysis['signal']}): "
+                          f"Confiança={integrated_analysis['confidence']:.2f} | "
+                          f"{agreement_count}/4 indicadores concordam")
+                    return integrated_analysis['signal']
+                else:
+                    print(f"⚠️  Sinal técnico {integrated_analysis['signal']} rejeitado: falta consenso "
+                          f"({agreement_count}/4 indicadores) e confirmação de momentum")
             else:
                 print(f"⚠️  Sinal técnico {integrated_analysis['signal']} rejeitado por falta de confirmação de momentum "
                       f"(confiança: {integrated_analysis['confidence']:.2f})")
@@ -632,22 +759,22 @@ def analyze_momentum_confirmation(market_data: pd.DataFrame, signal: str) -> boo
     
     print(f"🔍 CONFIRMAÇÃO DE MOMENTUM: Sinal={signal}, Preço={price_change_pct:.2f}%, Volume={volume_multiplier:.2f}x")
     
-    # Confirmação para sinais de COMPRA
+    # Confirmação para sinais de COMPRA - Critérios mais flexíveis
     if signal == 'COMPRAR':
-        momentum_ok = price_change_pct >= PRICE_CHANGE_THRESHOLD * 0.5  # 50% do threshold
-        volume_ok = volume_multiplier >= VOLUME_MULTIPLIER_THRESHOLD * 0.7  # 70% do threshold
+        momentum_ok = price_change_pct >= PRICE_CHANGE_THRESHOLD * 0.3  # Reduzido de 50% para 30%
+        volume_ok = volume_multiplier >= VOLUME_MULTIPLIER_THRESHOLD * 0.5  # Reduzido de 70% para 50%
         confirmation = momentum_ok and volume_ok
-        print(f"   ➤ COMPRA: Momentum OK={momentum_ok} ({price_change_pct:.2f}% >= {PRICE_CHANGE_THRESHOLD * 0.5:.2f}%), "
-              f"Volume OK={volume_ok} ({volume_multiplier:.2f}x >= {VOLUME_MULTIPLIER_THRESHOLD * 0.7:.2f}x)")
+        print(f"   ➤ COMPRA: Momentum OK={momentum_ok} ({price_change_pct:.2f}% >= {PRICE_CHANGE_THRESHOLD * 0.3:.2f}%), "
+              f"Volume OK={volume_ok} ({volume_multiplier:.2f}x >= {VOLUME_MULTIPLIER_THRESHOLD * 0.5:.2f}x)")
         return confirmation
     
-    # Confirmação para sinais de VENDA
+    # Confirmação para sinais de VENDA - Critérios mais flexíveis
     elif signal == 'VENDER':
-        momentum_ok = price_change_pct <= -PRICE_CHANGE_THRESHOLD * 0.5  # 50% do threshold
-        volume_ok = volume_multiplier >= VOLUME_MULTIPLIER_THRESHOLD * 0.7  # 70% do threshold
+        momentum_ok = price_change_pct <= -PRICE_CHANGE_THRESHOLD * 0.3  # Reduzido de 50% para 30%
+        volume_ok = volume_multiplier >= VOLUME_MULTIPLIER_THRESHOLD * 0.5  # Reduzido de 70% para 50%
         confirmation = momentum_ok and volume_ok
-        print(f"   ➤ VENDA: Momentum OK={momentum_ok} ({price_change_pct:.2f}% <= {-PRICE_CHANGE_THRESHOLD * 0.5:.2f}%), "
-              f"Volume OK={volume_ok} ({volume_multiplier:.2f}x >= {VOLUME_MULTIPLIER_THRESHOLD * 0.7:.2f}x)")
+        print(f"   ➤ VENDA: Momentum OK={momentum_ok} ({price_change_pct:.2f}% <= {-PRICE_CHANGE_THRESHOLD * 0.3:.2f}%), "
+              f"Volume OK={volume_ok} ({volume_multiplier:.2f}x >= {VOLUME_MULTIPLIER_THRESHOLD * 0.5:.2f}x)")
         return confirmation
     
     return False
@@ -666,19 +793,24 @@ def find_integrated_exhaustion_signal(market_data: pd.DataFrame, position_side: 
     # 1. Análise técnica integrada
     integrated_analysis = calculate_integrated_signal(market_data)
     
-    # 2. Verificar se o sinal integrado sugere saída
+    # DEBUG: Mostrar análise de saída
+    print(f"🚪 ANÁLISE DE SAÍDA INTEGRADA ({position_side}): {integrated_analysis['signal']} | "
+          f"Score={integrated_analysis['weighted_score']:.3f} | "
+          f"Confiança={integrated_analysis['confidence']:.2f}")
+    
+    # 2. Verificar se o sinal integrado sugere saída - Critérios mais flexíveis
     signal_suggests_exit = False
     
     if position_side == 'LONG':
-        # Sair de posição longa se sinal técnico for de VENDA com alta confiança
-        if integrated_analysis['signal'] == 'VENDER' and integrated_analysis['confidence'] >= 0.6:
+        # Sair de posição longa se sinal técnico for de VENDA com confiança moderada
+        if integrated_analysis['signal'] == 'VENDER' and integrated_analysis['confidence'] >= EXIT_CONFIDENCE_THRESHOLD:
             print(f"🚪 SINAL DE SAÍDA INTEGRADO (LONG): Indicadores técnicos sugerem VENDA "
                   f"(confiança: {integrated_analysis['confidence']:.2f})")
             signal_suggests_exit = True
     
     elif position_side == 'SHORT':
-        # Sair de posição curta se sinal técnico for de COMPRA com alta confiança
-        if integrated_analysis['signal'] == 'COMPRAR' and integrated_analysis['confidence'] >= 0.6:
+        # Sair de posição curta se sinal técnico for de COMPRA com confiança moderada
+        if integrated_analysis['signal'] == 'COMPRAR' and integrated_analysis['confidence'] >= EXIT_CONFIDENCE_THRESHOLD:
             print(f"🚪 SINAL DE SAÍDA INTEGRADO (SHORT): Indicadores técnicos sugerem COMPRA "
                   f"(confiança: {integrated_analysis['confidence']:.2f})")
             signal_suggests_exit = True
@@ -691,23 +823,23 @@ def find_integrated_exhaustion_signal(market_data: pd.DataFrame, position_side: 
             return True
         else:
             print(f"⚠️  Saída parcialmente confirmada: Aguardando confirmação de momentum")
-            # Ainda considera saída se confiança for muito alta
-            return integrated_analysis['confidence'] >= 0.8
+            # Considera saída com confiança moderada também
+            return integrated_analysis['confidence'] >= EXIT_CONFIRMATION_THRESHOLD
     
-    # 4. Verificar condições individuais de indicadores críticos
+    # 4. Verificar condições individuais de indicadores críticos - Mais flexível
     indicators = integrated_analysis['indicators']
     
-    # RSI crítico
+    # RSI crítico - Reduzir threshold
     if position_side == 'LONG':
         rsi_critical = (indicators.get('RSI', {}).get('signal') == 'VENDER' and 
-                       indicators.get('RSI', {}).get('strength', 0) >= 0.8)
+                       indicators.get('RSI', {}).get('strength', 0) >= RSI_CRITICAL_STRENGTH)
         if rsi_critical:
             print(f"🚪 SINAL DE SAÍDA (LONG): RSI crítico - {indicators['RSI']['description']}")
             return True
     
     elif position_side == 'SHORT':
         rsi_critical = (indicators.get('RSI', {}).get('signal') == 'COMPRAR' and 
-                       indicators.get('RSI', {}).get('strength', 0) >= 0.8)
+                       indicators.get('RSI', {}).get('strength', 0) >= RSI_CRITICAL_STRENGTH)
         if rsi_critical:
             print(f"🚪 SINAL DE SAÍDA (SHORT): RSI crítico - {indicators['RSI']['description']}")
             return True
@@ -850,7 +982,7 @@ def find_comprehensive_signal(market_data: pd.DataFrame) -> str:
     volatility = calculate_volatility_score(market_data)
     
     # Só considerar padrões de reversão se a volatilidade for adequada
-    if volatility > 0.02:  # Volatilidade mínima para confiar nos padrões
+    if volatility > MIN_VOLATILITY_FOR_PATTERNS:  # Configurável via settings
         if reversal_patterns['bullish_reversal']:
             print(f"🔄 Padrão de reversão ALTISTA detectado: {reversal_patterns['pattern_name']}")
             return 'COMPRAR'
@@ -875,7 +1007,8 @@ def generate_technical_analysis_report(market_data: pd.DataFrame, symbol: str = 
     Gera um relatório completo da análise técnica integrada.
     """
     # Requisito mínimo mais flexível
-    min_required = max(RSI_PERIOD, MACD_SLOW, BB_PERIOD, min(EMA_FILTER, 50)) + 5
+    # Requisito mínimo configurável
+    min_required = max(RSI_PERIOD, MACD_SLOW, BB_PERIOD, FALLBACK_EMA_FILTER) + MIN_DATA_BUFFER
     
     if market_data is None or len(market_data) < min_required:
         return {
