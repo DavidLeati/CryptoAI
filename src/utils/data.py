@@ -164,7 +164,8 @@ class RealTimeDataManager:
         print(f"✅ WebSocket conectado para {stream_key}")
     
     def start_stream(self, symbol: str, timeframe: str = '1m', limit: int = 1000, 
-                    callback: Optional[Callable] = None) -> str:
+                    callback: Optional[Callable] = None, client=None, 
+                    populate_historical: bool = True) -> str:
         """
         Inicia stream de dados em tempo real para um símbolo e timeframe.
         
@@ -173,6 +174,8 @@ class RealTimeDataManager:
             timeframe (str): Timeframe das velas (ex: '1m', '5m', '1h')
             limit (int): Número máximo de velas no buffer
             callback (Callable): Função a ser chamada quando nova vela for fechada
+            client: Cliente da exchange para buscar dados históricos iniciais
+            populate_historical (bool): Se deve pré-popular com dados históricos
             
         Returns:
             str: Chave do stream para controle
@@ -181,6 +184,30 @@ class RealTimeDataManager:
         
         # Inicializar buffer com tamanho limitado
         self.data_buffers[stream_key] = deque(maxlen=limit)
+        
+        # Pré-popular buffer com dados históricos se solicitado
+        if populate_historical and client:
+            try:
+                print(f"📊 Buscando dados históricos para {symbol} ({timeframe})...")
+                historical_data = fetch_data(client, symbol, timeframe, min(limit, 1000))
+                if historical_data is not None and not historical_data.empty:
+                    # Converter DataFrame para formato de velas e adicionar ao buffer
+                    for index, row in historical_data.iterrows():
+                        candle = {
+                            'timestamp': index,
+                            'open': float(row['open']),
+                            'high': float(row['high']),
+                            'low': float(row['low']),
+                            'close': float(row['close']),
+                            'volume': float(row['volume']),
+                            'is_closed': True  # Dados históricos são sempre fechados
+                        }
+                        self.data_buffers[stream_key].append(candle)
+                    print(f"✅ {len(historical_data)} velas históricas carregadas para {stream_key}")
+                else:
+                    print(f"⚠️  Falha ao carregar dados históricos para {stream_key}")
+            except Exception as e:
+                print(f"❌ Erro ao buscar dados históricos para {stream_key}: {e}")
         
         # Registrar callback se fornecido
         if callback:
@@ -261,6 +288,61 @@ class RealTimeDataManager:
         df.set_index('timestamp', inplace=True)
         return df
     
+    def wait_for_sufficient_data(self, stream_key: str, min_required: int, 
+                                timeout: int = 30) -> bool:
+        """
+        Aguarda até que o stream tenha dados suficientes.
+        
+        Args:
+            stream_key (str): Chave do stream
+            min_required (int): Número mínimo de velas necessárias
+            timeout (int): Tempo limite em segundos
+            
+        Returns:
+            bool: True se dados suficientes foram obtidos, False caso contrário
+        """
+        import time
+        start_time = time.time()
+        
+        while time.time() - start_time < timeout:
+            df = self.get_dataframe(stream_key)
+            if df is not None and len(df) >= min_required:
+                print(f"✅ Dados suficientes obtidos para {stream_key}: {len(df)} velas")
+                return True
+            
+            print(f"⏳ Aguardando dados para {stream_key}: {len(df) if df is not None else 0}/{min_required} velas...")
+            time.sleep(2)
+        
+        print(f"⚠️  Timeout ao aguardar dados suficientes para {stream_key}")
+        return False
+    
+    def get_stream_status(self, stream_key: str) -> dict:
+        """
+        Retorna status detalhado de um stream.
+        
+        Args:
+            stream_key (str): Chave do stream
+            
+        Returns:
+            dict: Status do stream com informações detalhadas
+        """
+        status = {
+            'stream_key': stream_key,
+            'is_connected': stream_key in self.connections,
+            'buffer_size': 0,
+            'has_current_candle': stream_key in self.current_candles,
+            'has_callback': stream_key in self.callbacks
+        }
+        
+        if stream_key in self.data_buffers:
+            buffer = self.data_buffers[stream_key]
+            status['buffer_size'] = len(buffer)
+            if buffer:
+                status['oldest_candle'] = buffer[0]['timestamp']
+                status['newest_candle'] = buffer[-1]['timestamp']
+        
+        return status
+    
     def get_current_candle(self, stream_key: str) -> Optional[Dict]:
         """
         Retorna a vela atual (ainda não fechada) para um stream.
@@ -283,7 +365,8 @@ class RealTimeDataManager:
 
 
 def fetch_realtime_data(symbol: str, timeframe: str = '1m', limit: int = 1000, 
-                       callback: Optional[Callable] = None) -> RealTimeDataManager:
+                       callback: Optional[Callable] = None, client=None,
+                       populate_historical: bool = True) -> RealTimeDataManager:
     """
     Função de conveniência para iniciar coleta de dados em tempo real.
     
@@ -292,6 +375,8 @@ def fetch_realtime_data(symbol: str, timeframe: str = '1m', limit: int = 1000,
         timeframe (str): Timeframe das velas (ex: '1m', '5m', '1h')
         limit (int): Número máximo de velas no buffer
         callback (Callable): Função a ser chamada quando nova vela for fechada
+        client: Cliente da exchange para buscar dados históricos iniciais
+        populate_historical (bool): Se deve pré-popular com dados históricos
         
     Returns:
         RealTimeDataManager: Instância do gerenciador para controle
@@ -301,7 +386,7 @@ def fetch_realtime_data(symbol: str, timeframe: str = '1m', limit: int = 1000,
         def on_new_candle(df):
             print(f"Nova vela fechada! Última close: {df.iloc[-1]['close']}")
         
-        manager = fetch_realtime_data('BTC/USDT:USDT', '1m', 500, on_new_candle)
+        manager = fetch_realtime_data('BTC/USDT:USDT', '1m', 500, on_new_candle, client)
         
         # Para obter dados atuais
         stream_key = 'BTC/USDT:USDT_1m'
@@ -312,5 +397,5 @@ def fetch_realtime_data(symbol: str, timeframe: str = '1m', limit: int = 1000,
         manager.stop_all_streams()
     """
     manager = RealTimeDataManager()
-    manager.start_stream(symbol, timeframe, limit, callback)
+    manager.start_stream(symbol, timeframe, limit, callback, client, populate_historical)
     return manager

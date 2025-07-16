@@ -6,6 +6,11 @@ import pandas as pd
 import numpy as np
 import sys
 from pathlib import Path
+
+# Adicionar diretório pai para imports
+parent_dir = Path(__file__).parent.parent
+sys.path.insert(0, str(parent_dir))
+
 from utils.data import fetch_data, RealTimeDataManager
 
 # Importar configurações centralizadas
@@ -180,6 +185,15 @@ def fetch_multi_timeframe_data(manager: RealTimeDataManager, client, symbol: str
         min_required_bars = max(RSI_PERIOD, MACD_SLOW, BB_PERIOD, EMA_FILTER) + MIN_DATA_BUFFER
         if df is None or df.empty or len(df) < min_required_bars:
             print(f"⚠️  Dados WebSocket para {tf_config['tf']} insuficientes ou indisponíveis (Necessário: {min_required_bars}, Encontrado: {len(df) if df is not None else 0}).")
+            
+            # Tentar aguardar um pouco mais pelos dados
+            if manager.wait_for_sufficient_data(stream_key, min_required_bars, timeout=10):
+                df = manager.get_dataframe(stream_key)
+                if df is not None and len(df) >= min_required_bars:
+                    print(f"✅ Dados WebSocket obtidos após aguardar para {tf_config['tf']}")
+                    multi_data[tf_name] = df
+                    continue
+            
             use_fallback = True
             break
         
@@ -961,7 +975,7 @@ def calculate_volatility_score(market_data: pd.DataFrame, period: int = None) ->
 # 4. FUNÇÕES PRINCIPAIS DE SINALIZAÇÃO - COM ANÁLISE MULTI-TIMEFRAME
 # =============================================================================
 
-def find_integrated_momentum_signal_mta(client, symbol: str, market_data: pd.DataFrame = None) -> str:
+def find_integrated_momentum_signal_mta(client, symbol: str, manager) -> str:
     """
     Versão Multi-TimeFrame (MTA) da análise integrada.
     Combina análise técnica dos 4 indicadores com filtros de tendência multi-timeframe.
@@ -975,9 +989,9 @@ def find_integrated_momentum_signal_mta(client, symbol: str, market_data: pd.Dat
         str: 'COMPRAR'|'VENDER'|'AGUARDAR'
     """
     # 1. Buscar dados multi-timeframe
-    if client:
+    if manager:
         print(f"🔍 INICIANDO ANÁLISE MULTI-TIMEFRAME para {symbol}")
-        multi_data = fetch_multi_timeframe_data(client, symbol)
+        multi_data = fetch_multi_timeframe_data(manager, client, symbol)
         
         if multi_data:
             # Usar análise multi-timeframe completa
@@ -997,11 +1011,12 @@ def find_integrated_momentum_signal_mta(client, symbol: str, market_data: pd.Dat
         print(f"⚠️  Cliente não fornecido. Usando análise single-timeframe.")
     
     # 2. Fallback para análise single-timeframe se MTA falhar
-    if market_data is not None:
-        return find_integrated_momentum_signal_legacy(market_data)
-    else:
+    if manager is None or not multi_data:
         print(f"❌ Dados insuficientes para análise de {symbol}")
         return 'AGUARDAR'
+    else:
+        print(f"⚠️  USANDO ANÁLISE SINGLE-TIMEFRAME (LEGACY)")
+        return find_integrated_momentum_signal_legacy(multi_data)
 
 def find_integrated_momentum_signal_legacy(market_data: pd.DataFrame) -> str:
     """
@@ -1456,48 +1471,60 @@ def find_enhanced_momentum_signal(market_data: pd.DataFrame) -> str:
     """
     return find_integrated_momentum_signal(market_data)
 
-def find_comprehensive_signal(market_data: pd.DataFrame, client=None, symbol: str = None) -> str:
+def find_comprehensive_signal(client, symbol: str, manager) -> str:
     """
-    Análise mais abrangente que combina a análise integrada com padrões de reversão.
-    Agora suporta análise multi-timeframe quando client e symbol são fornecidos.
-    
+    Análise abrangente que orquestra a obtenção de dados e a sinalização.
+    Prioriza a análise Multi-Timeframe (MTA) via WebSocket e usa a análise
+    de timeframe único como fallback.
+
     Args:
-        market_data: Dados do timeframe primário
-        client: Cliente da exchange (opcional, para análise multi-timeframe)
-        symbol: Símbolo do ativo (opcional, para análise multi-timeframe)
-    
+        client: Cliente da exchange, para o fallback via API REST.
+        symbol: Símbolo do ativo a ser analisado.
+        manager: Instância do RealTimeDataManager para obter dados via WebSocket.
+
     Returns:
         str: 'COMPRAR'|'VENDER'|'AGUARDAR'
     """
-    # 1. Tentar análise multi-timeframe primeiro se client e symbol disponíveis
-    if client and symbol:
-        print(f"🚀 USANDO ANÁLISE MULTI-TIMEFRAME para {symbol}")
-        mta_signal = find_integrated_momentum_signal_mta(client, symbol, market_data)
-        if mta_signal != 'AGUARDAR':
-            return mta_signal
-        print(f"🔄 MTA retornou AGUARDAR, tentando análise complementar...")
-    else:
-        print("⚠️  Client/Symbol não fornecidos, usando análise single-timeframe")
-        
-    # 2. Análise integrada single-timeframe como fallback
+    # Etapa 1: Tenta obter dados de múltiplos timeframes (MTA)
+    multi_data = fetch_multi_timeframe_data(manager, client, symbol)
+
+    # Se a coleta de dados (MTA ou fallback) falhar completamente, não há o que analisar.
+    if multi_data is None:
+        print(f"❌ Análise para {symbol} interrompida: Falha na obtenção de dados.")
+        return 'AGUARDAR'
+
+    # Etapa 2: Executa a análise Multi-Timeframe com os dados obtidos
+    mta_result = calculate_multi_timeframe_signal(multi_data)
+
+    # Se o MTA aprovar um sinal de COMPRA ou VENDA, essa é a nossa melhor resposta.
+    if mta_result['mta_approved'] and mta_result['signal'] != 'AGUARDAR':
+        print(f"✅ Sinal MTA APROVADO para {symbol}: {mta_result['signal']}")
+        return mta_result['signal']
+
+    # Etapa 3: Se o MTA não deu um sinal claro, use os dados do timeframe primário para análises complementares.
+    market_data = multi_data['primary']
+    print(f"🔄 MTA para {symbol} não conclusivo. Analisando padrões de reversão e volatilidade no timeframe primário...")
+
+    # Se a análise integrada (nos dados primários) já der um sinal forte, use-o.
     integrated_signal = find_integrated_momentum_signal_legacy(market_data)
-    
     if integrated_signal != 'AGUARDAR':
+        print(f"ℹ️  Análise integrada no timeframe primário sugere: {integrated_signal}")
         return integrated_signal
-    
-    # 3. Se não há sinal claro, verificar padrões de reversão
+
+    # Etapa 4: Como último recurso, verifique padrões de reversão no timeframe primário.
     reversal_patterns = detect_reversal_patterns(market_data)
     volatility = calculate_volatility_score(market_data)
-    
-    # Só considerar padrões de reversão se a volatilidade for adequada
-    if volatility > MIN_VOLATILITY_FOR_PATTERNS:  # Configurável via settings
+
+    # Só confia em padrões de reversão se houver um mínimo de volatilidade.
+    if volatility > MIN_VOLATILITY_FOR_PATTERNS:  # Configurável via settings.py
         if reversal_patterns['bullish_reversal']:
             print(f"🔄 Padrão de reversão ALTISTA detectado: {reversal_patterns['pattern_name']}")
             return 'COMPRAR'
         elif reversal_patterns['bearish_reversal']:
             print(f"🔄 Padrão de reversão BAIXISTA detectado: {reversal_patterns['pattern_name']}")
             return 'VENDER'
-    
+
+    # Se nenhuma das análises (MTA, integrada, padrões) gerou um sinal, aguardar.
     return 'AGUARDAR'
 
 def find_comprehensive_exit_signal(market_data: pd.DataFrame, position_side: str) -> bool:

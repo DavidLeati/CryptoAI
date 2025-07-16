@@ -48,7 +48,7 @@ lock_posicoes = threading.Lock()
 # 2. A LÓGICA DO WORKER (O QUE CADA THREAD FAZ)
 # =============================================================================
 
-def processar_ativo(symbol, client):
+def processar_ativo(symbol, client, manager):
     """
     Função principal que cada thread executa para um único ativo.
     Gerencia o ciclo de vida completo de uma operação: entrar, monitorar e sair.
@@ -62,14 +62,9 @@ def processar_ativo(symbol, client):
 
             if status_atual == 'MONITORING':
                 print(f"({symbol}) Monitorando para um sinal de ENTRADA...")
-                market_data = fetch_data(client, symbol, timeframe='1m', limit=100)
-                if market_data is None:
-                    time.sleep(5)
-                    continue
-
                 # Usar análise multi-timeframe passando client e symbol
-                sinal_entrada = find_comprehensive_signal(market_data, client=client, symbol=symbol)
-                
+                sinal_entrada = find_comprehensive_signal(client=client, symbol=symbol, manager=manager)
+
                 if sinal_entrada == 'COMPRAR':
                     print(f"🚨 SINAL DE COMPRA DETECTADO PARA {symbol}! 🚨")
                     sucesso = open_long_position(client, symbol, TRADE_VALUE_USD, STOP_LOSS_PCT)
@@ -150,7 +145,25 @@ def main():
     timeframes_necessarios = [PRIMARY_TIMEFRAME, SECONDARY_TIMEFRAME, CONFIRMATION_TIMEFRAME]
     for symbol in FORMATTED_ASSETS:
         for tf in timeframes_necessarios:
-            realtime_data_manager.start_stream(symbol, tf, limit=300)
+            realtime_data_manager.start_stream(symbol, tf, limit=300, client=client, populate_historical=True)
+    
+    # 5. Aguardar dados suficientes antes de continuar
+    print("⏳ Aguardando dados suficientes para análise...")
+    min_required_bars = max(14, 26, 20, 200) + 3  # RSI, MACD, BB, EMA_FILTER + buffer
+    
+    all_streams_ready = True
+    for symbol in FORMATTED_ASSETS:
+        for tf in timeframes_necessarios:
+            stream_key = f"{symbol}_{tf}"
+            if not realtime_data_manager.wait_for_sufficient_data(stream_key, min_required_bars, timeout=60):
+                print(f"❌ Falha ao obter dados suficientes para {stream_key}")
+                all_streams_ready = False
+    
+    if not all_streams_ready:
+        print("❌ Nem todos os streams obtiveram dados suficientes. Continuando mesmo assim...")
+    else:
+        print("✅ Todos os streams têm dados suficientes para análise.")
+    
     print("✅ Todos os streams foram iniciados.")
 
     # 4. Cria e inicia uma thread para cada ativo na watchlist
@@ -160,14 +173,14 @@ def main():
         for symbol in FORMATTED_ASSETS:
             print(f"🔧 Preparando {symbol}...")
             setup_leverage_for_symbol(client, symbol, LEVERAGE_LEVEL)  # Sempre continua
-            thread = threading.Thread(target=processar_ativo, args=(symbol, client))
+            thread = threading.Thread(target=processar_ativo, args=(symbol, client, realtime_data_manager))
             threads.append(thread)
             thread.start()
             time.sleep(0.2)  # Pausa reduzida para inicialização mais rápida
     else:
         print(f"🧪 Iniciando simulação com {len(FORMATTED_ASSETS)} símbolos...")
         for symbol in FORMATTED_ASSETS:
-            thread = threading.Thread(target=processar_ativo, args=(symbol, client))
+            thread = threading.Thread(target=processar_ativo, args=(symbol, client, realtime_data_manager))
             threads.append(thread)
             thread.start()
             time.sleep(0.1)  # Inicialização ainda mais rápida para simulação
