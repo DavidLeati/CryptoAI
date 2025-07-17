@@ -16,7 +16,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 # Importar módulos do bot
 from src.trading.paper_trading import paper_trader
-from src.core import main
 from config.settings import TRADING_CONFIG, WEB_CONFIG, ASSETS_CONFIG, get_config
 
 # Importar sistemas de utilidades
@@ -27,7 +26,7 @@ from src.utils.performance import performance_monitor
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = WEB_CONFIG['SECRET_KEY']
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
 
 # Configurar logger
 logger = get_logger('web_interface')

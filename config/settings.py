@@ -83,40 +83,40 @@ LISTA_DE_ATIVOS = [
 
 # RSI (Relative Strength Index)
 RSI_PERIOD = 7 # Período do RSI (padrão = 14)
-RSI_OVERSOLD = 20 # Nível de sobrecompra do RSI (padrão = 20)
-RSI_OVERBOUGHT = 80 # Nível de sobrevenda do RSI (padrão = 80)
-RSI_WEIGHT = 0.25 # Peso do RSI na análise integrada (padrão = 0.25)
+RSI_OVERSOLD = 10 # Nível de sobrecompra do RSI (padrão = 20)
+RSI_OVERBOUGHT = 90 # Nível de sobrevenda do RSI (padrão = 80)
+RSI_WEIGHT = 0.40 # Peso do RSI na análise integrada (padrão = 0.25)
 
 # MACD (Moving Average Convergence Divergence)
 MACD_FAST = 5 # Período rápido (padrão = 12)
 MACD_SLOW = 13 # Período lento (padrão = 26)
 MACD_SIGNAL = 6 # Período do sinal (padrão = 9)
-MACD_WEIGHT = 0.25 # Peso do MACD na análise integrada (padrão = 0.25)
+MACD_WEIGHT = 0.20 # Peso do MACD na análise integrada (padrão = 0.25)
 
 # Bandas de Bollinger
 BB_PERIOD = 14 # Período das Bandas de Bollinger (padrão = 20)
 BB_STD = 2.0 # Desvio padrão para as bandas (padrão = 2.0)
-BB_WEIGHT = 0.25 # Peso das Bandas de Bollinger na análise integrada (padrão = 0.25)
+BB_WEIGHT = 0.20 # Peso das Bandas de Bollinger na análise integrada (padrão = 0.25)
 
 # Médias Móveis Exponenciais
 EMA_SHORT = 7 # Período curto da EMA (padrão = 12)
 EMA_LONG = 14 # Período longo da EMA (padrão = 26)
-EMA_FILTER = 100 # Período da EMA para filtro de tendência (padrão = 200)
-EMA_WEIGHT = 0.25 # Peso da EMA na análise integrada (padrão = 0.25)
+EMA_FILTER = 120 # Período da EMA para filtro de tendência (padrão = 200)
+EMA_WEIGHT = 0.20 # Peso da EMA na análise integrada (padrão = 0.25)
 
 # =============================================================================
 # CONFIGURAÇÕES DE ANÁLISE DE MOMENTUM (LEGACY)
 # =============================================================================
 
 # Parâmetros de entrada (Momentum)
-PRICE_CHANGE_THRESHOLD = 0.5        # % mínima de mudança de preço para detectar momentum
-PRICE_CHANGE_PERIOD_MINUTES = 3     # Período em minutos para calcular mudança de preço
+PRICE_CHANGE_THRESHOLD = 1.0        # % mínima de mudança de preço para detectar momentum
+PRICE_CHANGE_PERIOD_MINUTES = 5     # Período em minutos para calcular mudança de preço
 VOLUME_MULTIPLIER_THRESHOLD = 2.0   # Multiplicador mínimo de volume comparado à média
 VOLUME_AVERAGE_PERIOD_MINUTES = 20  # Período em minutos para calcular volume médio
 
 # Parâmetros de saída (Exaustão)
-RSI_OVERBOUGHT_EXIT = 75.0          # Nível RSI para fechar posições LONGs
-RSI_OVERSOLD_EXIT = 25.0            # Nível RSI para fechar posições SHORTs
+RSI_OVERBOUGHT_EXIT = 85.0          # Nível RSI para fechar posições LONGs
+RSI_OVERSOLD_EXIT = 15.0            # Nível RSI para fechar posições SHORTs
 
 # Parâmetros de detecção de exaustão de momentum
 MOMENTUM_EXHAUSTION_PERIOD = 5      # Períodos para verificar perda de momentum
