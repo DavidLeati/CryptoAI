@@ -664,7 +664,6 @@ def calculate_rsi(data: pd.Series, period: int = None) -> pd.Series:
 def calculate_macd(data: pd.Series, fast: int = None, slow: int = None, signal: int = None) -> dict:
     """
     Calcula MACD usando configurações centralizadas.
-    VERSÃO ROBUSTA: Trata dados inválidos e casos extremos.
     """
     try:
         if fast is None:

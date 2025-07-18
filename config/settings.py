@@ -47,7 +47,7 @@ TAKE_PROFIT_PCT = 5.0        # Take profit em percentual
 LEVERAGE_LEVEL = 50          # Nível de alavancagem (1x = sem alavancagem)
 
 # Gerenciamento de risco
-MAX_CONCURRENT_TRADES = 10    # Máximo de trades simultâneos
+MAX_CONCURRENT_TRADES = 15    # Máximo de trades simultâneos
 MAX_DAILY_LOSS = 50.0         # Perda máxima diária em USD
 MAX_POSITION_SIZE_PCT = 100.0 # Máximo percentual do capital por posição
 LOW_QUALITY_TRADES_LIMIT = 5  # Limite de trades de baixa qualidade (fallback)
@@ -111,15 +111,15 @@ LISTA_DE_ATIVOS = [
 
 # RSI (Relative Strength Index)
 RSI_PERIOD = 7 # Período do RSI (padrão = 14)
-RSI_OVERSOLD = 10 # Nível de sobrecompra do RSI (padrão = 20)
-RSI_OVERBOUGHT = 90 # Nível de sobrevenda do RSI (padrão = 80)
+RSI_OVERSOLD = 20 # Nível de sobrecompra do RSI (padrão = 20)
+RSI_OVERBOUGHT = 80 # Nível de sobrevenda do RSI (padrão = 80)
 RSI_WEIGHT = 0.20 # Peso do RSI na análise integrada (padrão = 0.25)
 
 # MACD (Moving Average Convergence Divergence)
 MACD_FAST = 5 # Período rápido (padrão = 12)
 MACD_SLOW = 13 # Período lento (padrão = 26)
 MACD_SIGNAL = 6 # Período do sinal (padrão = 9)
-MACD_WEIGHT = 0.20 # Peso do MACD na análise integrada (padrão = 0.25)
+MACD_WEIGHT = 0.40 # Peso do MACD na análise integrada (padrão = 0.25)
 
 # Bandas de Bollinger
 BB_PERIOD = 14 # Período das Bandas de Bollinger (padrão = 20)
@@ -130,7 +130,7 @@ BB_WEIGHT = 0.20 # Peso das Bandas de Bollinger na análise integrada (padrão =
 EMA_SHORT = 7 # Período curto da EMA (padrão = 12)
 EMA_LONG = 14 # Período longo da EMA (padrão = 26)
 EMA_FILTER = 120 # Período da EMA para filtro de tendência (padrão = 200)
-EMA_WEIGHT = 0.40 # Peso da EMA na análise integrada (padrão = 0.25)
+EMA_WEIGHT = 0.20 # Peso da EMA na análise integrada (padrão = 0.25)
 
 # =============================================================================
 # CONFIGURAÇÕES DE ANÁLISE DE MOMENTUM (LEGACY)
@@ -155,8 +155,8 @@ VOLUME_DECLINE_THRESHOLD = 0.5      # Multiplicador que indica queda de volume
 # =============================================================================
 
 # Thresholds para sinais integrados
-INTEGRATED_SIGNAL_THRESHOLD_BUY = 0.12   # Score mínimo para sinal de COMPRA
-INTEGRATED_SIGNAL_THRESHOLD_SELL = -0.12 # Score máximo para sinal de VENDA
+INTEGRATED_SIGNAL_THRESHOLD_BUY = 0.10   # Score mínimo para sinal de COMPRA
+INTEGRATED_SIGNAL_THRESHOLD_SELL = -0.10 # Score máximo para sinal de VENDA
 CONFIDENCE_MULTIPLIER = 2.0              # Multiplicador para amplificar confiança
 
 # Thresholds de confiança
@@ -169,8 +169,8 @@ MOMENTUM_CONFIRMATION_PRICE_FACTOR = 0.3  # 30% do threshold de preço
 MOMENTUM_CONFIRMATION_VOLUME_FACTOR = 0.5 # 50% do threshold de volume
 
 # Análise de saída integrada
-EXIT_CONFIDENCE_THRESHOLD = 0.6          # Confiança mínima para sugerir saída
-EXIT_CONFIRMATION_THRESHOLD = 0.8        # Confiança para saída sem confirmação momentum
+EXIT_CONFIDENCE_THRESHOLD = 0.3          # Confiança mínima para sugerir saída
+EXIT_CONFIRMATION_THRESHOLD = 0.5        # Confiança para saída sem confirmação momentum
 RSI_CRITICAL_STRENGTH = 0.8              # Força mínima do RSI para saída crítica
 
 # Requisitos de dados
