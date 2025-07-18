@@ -50,6 +50,7 @@ LEVERAGE_LEVEL = 50          # Nível de alavancagem (1x = sem alavancagem)
 MAX_CONCURRENT_TRADES = 10    # Máximo de trades simultâneos
 MAX_DAILY_LOSS = 50.0         # Perda máxima diária em USD
 MAX_POSITION_SIZE_PCT = 100.0 # Máximo percentual do capital por posição
+LOW_QUALITY_TRADES_LIMIT = 5  # Limite de trades de baixa qualidade (fallback)
 
 # =============================================================================
 # LISTA DE ATIVOS PARA MONITORAMENTO

@@ -15,7 +15,7 @@ from settings import (
     PAPER_TRADING_MODE, TRADE_VALUE_USD, STOP_LOSS_PCT, TAKE_PROFIT_PCT,
     LEVERAGE_LEVEL, LISTA_DE_ATIVOS, INITIAL_BALANCE, UPDATE_INTERVAL, MAX_CONCURRENT_TRADES,
     PRIMARY_TIMEFRAME, SECONDARY_TIMEFRAME, CONFIRMATION_TIMEFRAME, RSI_PERIOD, MACD_FAST, MACD_SLOW, BB_PERIOD,
-    PERMITIR_REVERSAO_POSICAO
+    PERMITIR_REVERSAO_POSICAO, LOW_QUALITY_TRADES_LIMIT
 )
 
 # Importando as funções dos nossos módulos especialistas
@@ -95,11 +95,11 @@ def processar_ativo(symbol, client, manager):
                     if sinal_fonte == 'MTA':
                         print(f"({symbol}) Sinal de ALTA QUALIDADE (MTA) recebido. Tentando entrada...")
                         entrar_no_trade = True
-                    elif sinal_fonte == 'FALLBACK' and num_posicoes_abertas < 5: # Limite para trades de baixa qualidade
-                        print(f"({symbol}) Sinal de BAIXA QUALIDADE (Fallback) recebido. {num_posicoes_abertas}/5 posições de fallback. Tentando entrada...")
+                    elif sinal_fonte == 'FALLBACK' and num_posicoes_abertas < LOW_QUALITY_TRADES_LIMIT: # Limite para trades de baixa qualidade
+                        print(f"({symbol}) Sinal de BAIXA QUALIDADE (Fallback) recebido. {num_posicoes_abertas}/{LOW_QUALITY_TRADES_LIMIT} posições de fallback. Tentando entrada...")
                         entrar_no_trade = True
                     elif sinal_fonte == 'FALLBACK':
-                        print(f"({symbol}) Sinal de BAIXA QUALIDADE (Fallback) ignorado. Limite de posições de fallback ({num_posicoes_abertas}/5) atingido.")
+                        print(f"({symbol}) Sinal de BAIXA QUALIDADE (Fallback) ignorado. Limite de posições de fallback ({num_posicoes_abertas}/{LOW_QUALITY_TRADES_LIMIT}) atingido.")
 
                 if entrar_no_trade:
                     if sinal_entrada == 'COMPRAR':
