@@ -49,12 +49,13 @@ class PaperTradingSimulator:
                 leverage = TRADING_CONFIG['LEVERAGE_LEVEL']
                 
             if symbol in self.positions:
-                self.logger.warning(f"Já existe posição aberta para {symbol}")
+                # self.logger.warning(f"Já existe posição aberta para {symbol}") # Comentado para evitar spam no log
                 return False
             
             # Verificar limites de risco
-            if not risk_manager.can_open_position(symbol, trade_value_usd):
-                self.logger.warning(f"Posição bloqueada pelo gerenciador de risco: {symbol}")
+            can_open, risk_message = risk_manager.can_open_position(symbol, trade_value_usd)
+            if not can_open:
+                self.logger.warning(f"Posição bloqueada pelo gerenciador de risco: {risk_message}")
                 return False
             
             # Normalizar side para compatibilidade
@@ -93,7 +94,12 @@ class PaperTradingSimulator:
                 self.logger.error(f"Saldo insuficiente para {symbol}. Necessário: ${required_margin:.2f} (${trade_value_usd:.2f} + ${entry_fee_usd:.2f} taxa), Disponível: ${self.current_balance:.2f}")
                 return False
             
-            # Abrir posição
+            # Registrar posição no gerenciador de risco PRIMEIRO
+            if not risk_manager.open_position(symbol, side_normalized, adjusted_entry_price, trade_value_usd, leverage):
+                self.logger.error(f"Falha ao registrar posição no gerenciador de risco para {symbol}")
+                return False
+            
+            # Agora criar a posição no paper trader
             self.positions[symbol] = {
                 'side': side_normalized,
                 'entry_price': adjusted_entry_price,
@@ -113,16 +119,13 @@ class PaperTradingSimulator:
             # Log detalhado da abertura
             if TRADING_CONFIG.get('REALISTIC_FEES', False):
                 self.logger.info(f"Posição {side_normalized.upper()} aberta para {symbol}")
-                self.logger.info(f"   Preço Original: ${price:.4f}, Preço Ajustado: ${adjusted_entry_price:.4f}")
-                self.logger.info(f"   Valor: ${trade_value_usd:.2f}, Taxa: ${entry_fee_usd:.4f}")
+                self.logger.info(f"   Preço Original: ${price:.6f}, Preço Ajustado: ${adjusted_entry_price:.6f}")
+                self.logger.info(f"   Valor: ${trade_value_usd:.2f}, Taxa: ${entry_fee_usd:.6f}")
                 self.logger.info(f"   Alavancagem: {leverage}x")
             else:
                 self.logger.info(f"Posição {side_normalized.upper()} aberta para {symbol}")
-                self.logger.info(f"   Preço: ${price:.4f}, Valor: ${trade_value_usd:.2f}")
+                self.logger.info(f"   Preço: ${price:.6f}, Valor: ${trade_value_usd:.2f}")
                 self.logger.info(f"   Alavancagem: {leverage}x")
-            
-            # Registrar posição no gerenciador de risco
-            risk_manager.open_position(symbol, side_normalized, adjusted_entry_price, trade_value_usd, leverage)
             
             # Registrar no monitor de performance
             performance_monitor.record_trade_start(symbol, side_normalized, adjusted_entry_price, trade_value_usd)
@@ -233,14 +236,18 @@ class PaperTradingSimulator:
             # Log detalhado do fechamento
             if TRADING_CONFIG.get('REALISTIC_FEES', False):
                 self.logger.info(f"Posição {side.upper()} fechada para {symbol} - {result_text}")
-                self.logger.info(f"   P&L Bruto: ${pnl_gross_usd:+.2f} ({pnl_pct:+.2f}%) - Preço de Saída: ${adjusted_exit_price:.4f}")
-                self.logger.info(f"   Tarifas: ${total_fees:.2f} (Entrada: ${entry_fee:.2f} + Saída: ${exit_fee_usd:.2f})")
-                self.logger.info(f"   P&L Líquido: ${pnl_net_usd:+.2f} ({pnl_net_pct:+.2f}%)")
+                self.logger.info(f"   P&L Bruto: ${pnl_gross_usd:+.6f} ({pnl_pct:+.2f}%) - Preço de Saída: ${adjusted_exit_price:.4f}")
+                self.logger.info(f"   Tarifas: ${total_fees:.6f} (Entrada: ${entry_fee:.6f} + Saída: ${exit_fee_usd:.6f})")
+                self.logger.info(f"   P&L Líquido: ${pnl_net_usd:+.6f} ({pnl_net_pct:+.2f}%)")
             else:
                 self.logger.info(f"Posição {side.upper()} fechada para {symbol} - {result_text} - P&L: ${pnl_net_usd:+.2f} ({pnl_net_pct:+.2f}%)")
             
             # Registrar fechamento no gerenciador de risco
-            risk_manager.close_position(symbol, adjusted_exit_price)
+            risk_record = risk_manager.close_position(symbol, adjusted_exit_price)
+            if risk_record is None:
+                self.logger.warning(f"Posição {symbol} não encontrada no gerenciador de risco")
+            else:
+                self.logger.debug(f"Posição {symbol} fechada no gerenciador de risco")
             
             # Registrar no monitor de performance (usar P&L líquido)
             performance_monitor.record_trade_end(symbol, adjusted_exit_price, pnl_net_usd)
@@ -558,3 +565,4 @@ def paper_get_position_status(symbol):
     if position:
         return f"IN_{position['side'].upper()}"
     return 'MONITORING'
+

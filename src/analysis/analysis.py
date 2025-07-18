@@ -1799,7 +1799,7 @@ def find_momentum_signal(market_data: pd.DataFrame) -> str:
     """
     return find_integrated_momentum_signal(market_data)
 
-def find_integrated_exhaustion_signal_mta(client, symbol: str, position_side: str, market_data: pd.DataFrame = None) -> bool:
+def find_integrated_exhaustion_signal_mta(client, symbol: str, manager, position_side: str, market_data: pd.DataFrame = None) -> bool:
     """
     Análise de saída multi-timeframe que considera a tendência dos timeframes superiores.
     
@@ -1812,64 +1812,56 @@ def find_integrated_exhaustion_signal_mta(client, symbol: str, position_side: st
     Returns:
         bool: True se deve sair da posição
     """
-    # 1. Buscar dados multi-timeframe
-    if client:
+    
+    if manager and client:
         print(f"🚪 ANÁLISE DE SAÍDA MULTI-TIMEFRAME ({position_side}) para {symbol}")
-        multi_data = fetch_multi_timeframe_data(client, symbol)
+        multi_data = fetch_multi_timeframe_data(manager, client, symbol)
         
         if multi_data:
-            # Análise de saída no timeframe primário
-            primary_exit = find_integrated_exhaustion_signal_legacy(multi_data['primary'], position_side)
-            
-            # Análise da tendência no timeframe de confirmação
+            primary_exit_signal = find_integrated_exhaustion_signal_legacy(multi_data['primary'], position_side)
             trend_filter = analyze_higher_timeframe_trend(multi_data['confirmation'])
-            
-            print(f"   📊 Saída Primária ({PRIMARY_TIMEFRAME}): {primary_exit}")
-            print(f"   🎯 Tendência ({CONFIRMATION_TIMEFRAME}): {trend_filter['trend']} (força: {trend_filter['strength']:.2f})")
-            
-            # Aplicar filtros de saída multi-timeframe
-            if primary_exit:
-                # Se análise primária sugere saída, verificar se é confirmada pela tendência
-                if position_side == 'LONG':
-                    # Para LONG: confirmar saída se tendência virou bearish ou está enfraquecendo
-                    if (trend_filter['trend'] == 'BEARISH' or 
-                        trend_filter['price_vs_ema'] == 'BELOW' or
-                        trend_filter['ema_slope'] == 'DOWN'):
-                        print(f"✅ SAÍDA MTA CONFIRMADA (LONG): Tendência {CONFIRMATION_TIMEFRAME} desfavorável")
-                        return True
-                    else:
-                        print(f"⚠️  SAÍDA MTA PARCIAL (LONG): Aguardando confirmação de tendência")
-                        return trend_filter['strength'] < 0.3  # Sair se tendência fraca
+            higher_tf_trend = trend_filter.get('trend', 'SIDEWAYS')
+
+            print(f"   📊 Saída Primária ({PRIMARY_TIMEFRAME}): {primary_exit_signal}")
+            print(f"   🎯 Tendência ({CONFIRMATION_TIMEFRAME}): {higher_tf_trend} (força: {trend_filter.get('strength', 0):.2f})")
+
+            # --- LÓGICA DE SAÍDA COM PACIÊNCIA ESTRATÉGICA ---
+
+            # Condição 1: A tendência maior reverteu COMPLETAMENTE contra a nossa posição. SAÍDA IMEDIATA.
+            if (position_side == 'LONG' and higher_tf_trend == 'BEARISH') or \
+               (position_side == 'SHORT' and higher_tf_trend == 'BULLISH'):
+                print(f"🚨 SAÍDA FORÇADA: Posição '{position_side}' está contra a tendência principal '{higher_tf_trend}'.")
+                return True
+
+            # Condição 2: A análise primária sugere sair. Vamos verificar se faz sentido.
+            if primary_exit_signal:
+                # Se estamos LONG e a tendência principal AINDA é BULLISH, vamos ter paciência.
+                if position_side == 'LONG' and higher_tf_trend == 'BULLISH':
+                    print(f"⚠️  Sinal de saída primário ignorado. A tendência principal ({higher_tf_trend}) ainda suporta a posição LONG.")
+                    return False # NÃO SAIR
                 
-                elif position_side == 'SHORT':
-                    # Para SHORT: confirmar saída se tendência virou bullish ou está fortalecendo
-                    if (trend_filter['trend'] == 'BULLISH' or 
-                        trend_filter['price_vs_ema'] == 'ABOVE' or
-                        trend_filter['ema_slope'] == 'UP'):
-                        print(f"✅ SAÍDA MTA CONFIRMADA (SHORT): Tendência {CONFIRMATION_TIMEFRAME} desfavorável")
-                        return True
-                    else:
-                        print(f"⚠️  SAÍDA MTA PARCIAL (SHORT): Aguardando confirmação de tendência")
-                        return trend_filter['strength'] < 0.3  # Sair se tendência fraca
-            
-            # Se não há sinal de saída primário, verificar se tendência mudou drasticamente
-            elif trend_filter['strength'] > 0.6:  # Tendência muito forte contra a posição
-                if ((position_side == 'LONG' and trend_filter['trend'] == 'BEARISH') or
-                    (position_side == 'SHORT' and trend_filter['trend'] == 'BULLISH')):
-                    print(f"🚨 SAÍDA MTA POR MUDANÇA DE TENDÊNCIA: {trend_filter['trend']} forte no {CONFIRMATION_TIMEFRAME}")
+                # Se estamos SHORT e a tendência principal AINDA é BEARISH, vamos ter paciência.
+                elif position_side == 'SHORT' and higher_tf_trend == 'BEARISH':
+                    print(f"⚠️  Sinal de saída primário ignorado. A tendência principal ({higher_tf_trend}) ainda suporta a posição SHORT.")
+                    return False # NÃO SAIR
+                
+                # Se a tendência principal já enfraqueceu (SIDEWAYS), então aceitamos o sinal de saída.
+                else:
+                    print(f"✅ SAÍDA CONFIRMADA: Análise primária indicou saída e tendência principal não é mais favorável.")
                     return True
-            
+
+            # Se nenhuma condição de saída foi atendida, manter a posição.
             return False
         else:
             print(f"⚠️  Falha na coleta multi-timeframe para saída. Usando análise single-timeframe.")
     
-    # 2. Fallback para análise single-timeframe
+    # Lógica de fallback
     if market_data is not None:
         return find_integrated_exhaustion_signal_legacy(market_data, position_side)
     else:
-        print(f"❌ Dados insuficientes para análise de saída de {symbol}")
+        print(f"❌ Dados insuficientes para análise de saída de {symbol}.")
         return False
-
+    
 def find_integrated_exhaustion_signal_legacy(market_data: pd.DataFrame, position_side: str) -> bool:
     """
     Análise integrada de saída usando os 4 indicadores técnicos centralizados (versão original).
@@ -2059,62 +2051,63 @@ def find_enhanced_momentum_signal(market_data: pd.DataFrame) -> str:
     """
     return find_integrated_momentum_signal(market_data)
 
-def find_comprehensive_signal(client, symbol: str, manager) -> str:
+def find_comprehensive_signal(client, symbol: str, manager) -> dict:
     """
     Análise abrangente que orquestra a obtenção de dados e a sinalização.
-    Prioriza a análise Multi-Timeframe (MTA) via WebSocket e usa a análise
-    de timeframe único como fallback.
-
-    Args:
-        client: Cliente da exchange, para o fallback via API REST.
-        symbol: Símbolo do ativo a ser analisado.
-        manager: Instância do RealTimeDataManager para obter dados via WebSocket.
+    Prioriza a análise Multi-Timeframe (MTA) e usa um fallback filtrado.
 
     Returns:
-        str: 'COMPRAR'|'VENDER'|'AGUARDAR'
+        dict: Um dicionário com o sinal e sua fonte. 
+              Ex: {'signal': 'COMPRAR', 'source': 'MTA'}
+                  {'signal': 'AGUARDAR', 'source': 'REJECTED'}
     """
-    # Etapa 1: Tenta obter dados de múltiplos timeframes (MTA)
+    # Etapa 1: Obter dados de múltiplos timeframes
     multi_data = fetch_multi_timeframe_data(manager, client, symbol)
 
-    # Se a coleta de dados (MTA ou fallback) falhar completamente, não há o que analisar.
     if multi_data is None:
         print(f"❌ Análise para {symbol} interrompida: Falha na obtenção de dados.")
-        return 'AGUARDAR'
+        return {'signal': 'AGUARDAR', 'source': 'NO_DATA'}
 
-    # Etapa 2: Executa a análise Multi-Timeframe com os dados obtidos
+    # Etapa 2: Análise Multi-Timeframe (MTA) - a de maior qualidade
     mta_result = calculate_multi_timeframe_signal(multi_data)
 
-    # Se o MTA aprovar um sinal de COMPRA ou VENDA, essa é a nossa melhor resposta.
     if mta_result['mta_approved'] and mta_result['signal'] != 'AGUARDAR':
-        print(f"✅ Sinal MTA APROVADO para {symbol}: {mta_result['signal']}")
-        return mta_result['signal']
+        print(f"✅ Sinal de ALTA QUALIDADE (MTA) APROVADO para {symbol}: {mta_result['signal']}")
+        return {'signal': mta_result['signal'], 'source': 'MTA'}
 
-    # Etapa 3: Se o MTA não deu um sinal claro, use os dados do timeframe primário para análises complementares.
+    # Etapa 3: Se o MTA não deu sinal, analisar o fallback
+    print(f"🔄 MTA para {symbol} não conclusivo. Analisando fallback...")
+    
     market_data = multi_data['primary']
-    print(f"🔄 MTA para {symbol} não conclusivo. Analisando padrões de reversão e volatilidade no timeframe primário...")
+    legacy_signal = find_integrated_momentum_signal_legacy(market_data)
+    
+    # Se nem o fallback gerou um sinal, aguardar.
+    if legacy_signal == 'AGUARDAR':
+        return {'signal': 'AGUARDAR', 'source': 'NONE'}
+        
+    # Etapa 4: Aplicar o filtro de tendência ao sinal de fallback
+    trend_filter = mta_result.get('trend_filter', {})
+    higher_tf_trend = trend_filter.get('trend', 'SIDEWAYS')
+    
+    sinal_bloqueado_pela_tendencia = False
+    
+    # Condição de bloqueio para COMPRA
+    if legacy_signal == 'COMPRAR' and higher_tf_trend == 'BEARISH':
+        sinal_bloqueado_pela_tendencia = True
+        print(f"❌ SINAL DE COMPRA LEGACY REJEITADO para {symbol}. Tendência principal ({CONFIRMATION_TIMEFRAME}) é de baixa.")
+        
+    # Condição de bloqueio para VENDA
+    elif legacy_signal == 'VENDER' and higher_tf_trend == 'BULLISH':
+        sinal_bloqueado_pela_tendencia = True
+        print(f"❌ SINAL DE VENDA LEGACY REJEITADO para {symbol}. Tendência principal ({CONFIRMATION_TIMEFRAME}) é de alta.")
 
-    # Se a análise integrada (nos dados primários) já der um sinal forte, use-o.
-    integrated_signal = find_integrated_momentum_signal_legacy(market_data)
-    if integrated_signal != 'AGUARDAR':
-        print(f"ℹ️  Análise integrada no timeframe primário sugere: {integrated_signal}")
-        return integrated_signal
-
-    # Etapa 4: Como último recurso, verifique padrões de reversão no timeframe primário.
-    reversal_patterns = detect_reversal_patterns(market_data)
-    volatility = calculate_volatility_score(market_data)
-
-    # Só confia em padrões de reversão se houver um mínimo de volatilidade.
-    if volatility > MIN_VOLATILITY_FOR_PATTERNS:  # Configurável via settings.py
-        if reversal_patterns['bullish_reversal']:
-            print(f"🔄 Padrão de reversão ALTISTA detectado: {reversal_patterns['pattern_name']}")
-            return 'COMPRAR'
-        elif reversal_patterns['bearish_reversal']:
-            print(f"🔄 Padrão de reversão BAIXISTA detectado: {reversal_patterns['pattern_name']}")
-            return 'VENDER'
-
-    # Se nenhuma das análises (MTA, integrada, padrões) gerou um sinal, aguardar.
-    return 'AGUARDAR'
-
+    # Etapa 5: Decidir o retorno final com base no filtro
+    if sinal_bloqueado_pela_tendencia:
+        return {'signal': 'AGUARDAR', 'source': 'REJECTED'}
+    else:
+        print(f"ℹ️  Análise de fallback (com filtro de tendência) APROVADA para {symbol}: {legacy_signal}")
+        return {'signal': legacy_signal, 'source': 'FALLBACK'}
+    
 def find_comprehensive_exit_signal(market_data: pd.DataFrame, position_side: str) -> bool:
     """
     Análise avançada de saída que usa a análise integrada como base.
@@ -2377,182 +2370,3 @@ def print_analysis_summary_mta(market_data: pd.DataFrame, symbol: str = "Unknown
             print(f"      └─ Motivo: {rec.get('mta_rejection_reason', 'Não especificado')}")
     
     print(f"{'='*60}\n")
-
-# =============================================================================
-# 6. EXEMPLO DE USO DAS NOVAS FUNÇÕES MULTI-TIMEFRAME
-# =============================================================================
-
-def example_multi_timeframe_usage():
-    """
-    Exemplo de como usar as novas funções de análise multi-timeframe.
-    """
-    print("="*60)
-    print("📚 EXEMPLO DE USO - ANÁLISE MULTI-TIMEFRAME")
-    print("="*60)
-    
-    example_code = '''
-# EXEMPLO 1: Análise de entrada multi-timeframe
-from binance.client import Client
-
-# Configurar cliente (substitua pelas suas credenciais)
-client = Client('api_key', 'api_secret')
-symbol = 'BTCUSDT'
-
-# Método 1: Análise completa multi-timeframe (RECOMENDADO)
-signal = find_integrated_momentum_signal_mta(client, symbol)
-print(f"Sinal MTA: {signal}")
-
-# Método 2: Análise manual dos timeframes
-multi_data = fetch_multi_timeframe_data(client, symbol)
-if multi_data:
-    mta_result = calculate_multi_timeframe_signal(multi_data)
-    print_analysis_summary_mta(multi_data['primary'], symbol, multi_data)
-
-# EXEMPLO 2: Análise de saída multi-timeframe
-position_side = 'LONG'  # ou 'SHORT'
-should_exit = find_integrated_exhaustion_signal_mta(client, symbol, position_side)
-print(f"Deve sair da posição {position_side}: {should_exit}")
-
-# EXEMPLO 3: Análise de tendência em timeframe superior
-trend_analysis = analyze_higher_timeframe_trend(multi_data['confirmation'])
-print(f"Tendência 15m: {trend_analysis['trend']} (força: {trend_analysis['strength']:.2f})")
-
-# EXEMPLO 4: Análise de divergência clássica melhorada
-divergence = analyze_volume_price_divergence(multi_data['primary'])
-if divergence['bullish_divergence']:
-    print(f"🟢 Divergência altista detectada com {divergence['total_peaks']} picos")
-elif divergence['bearish_divergence']:
-    print(f"🔴 Divergência baixista detectada com {divergence['total_troughs']} vales")
-'''
-    
-    print(example_code)
-    print("="*60)
-    print("🔧 PRINCIPAIS MELHORIAS IMPLEMENTADAS:")
-    print("✅ 1. Análise Multi-Timeframe Real (MTA)")
-    print("   • Coleta dados de 1m, 5m e 15m simultaneamente")
-    print("   • Filtra sinais do 1m com base na tendência do 15m")
-    print("   • Confirma com contexto do 5m")
-    print("")
-    print("✅ 2. Análise de Divergência Clássica")
-    print("   • Detecta topos/fundos em preço e RSI")
-    print("   • Identifica divergências bullish e bearish reais")
-    print("   • Reduz falsos positivos significativamente")
-    print("")
-    print("📊 CONFIGURAÇÕES UTILIZADAS:")
-    print(f"   • Timeframe Primário: {PRIMARY_TIMEFRAME} (sinais)")
-    print(f"   • Timeframe Secundário: {SECONDARY_TIMEFRAME} (contexto)")
-    print(f"   • Timeframe Confirmação: {CONFIRMATION_TIMEFRAME} (filtro de tendência)")
-    print(f"   • EMA Filtro: {EMA_FILTER} períodos no timeframe de confirmação")
-    print("="*60)
-
-def test_improved_momentum_analysis():
-    """
-    Função de teste para demonstrar as melhorias na análise de momentum.
-    Cria dados sintéticos com problemas comuns para testar a robustez.
-    """
-    print("🧪 TESTE DAS MELHORIAS NA ANÁLISE DE MOMENTUM")
-    print("=" * 60)
-    
-    # Teste 1: Dados com volume zero
-    print("\n📊 TESTE 1: Dados com volume médio zero")
-    dates = pd.date_range('2024-01-01', periods=50, freq='1min')
-    test_data_1 = pd.DataFrame({
-        'open': [100.0] * 50,
-        'high': [100.1] * 50,
-        'low': [99.9] * 50,
-        'close': [100.0 + (i * 0.01) for i in range(50)],  # Preço subindo lentamente
-        'volume': [0.0] * 49 + [1000.0]  # Apenas última vela com volume
-    }, index=dates)
-    
-    result_1 = find_momentum_signal_legacy(test_data_1)
-    print(f"Resultado Teste 1: {result_1}")
-    
-    # Teste 2: Dados com preços idênticos  
-    print("\n📊 TESTE 2: Dados com preços idênticos")
-    test_data_2 = pd.DataFrame({
-        'open': [100.0] * 50,
-        'high': [100.0] * 50, 
-        'low': [100.0] * 50,
-        'close': [100.0] * 50,  # Preços totalmente estáveis
-        'volume': [1000.0] * 50
-    }, index=dates)
-    
-    result_2 = find_momentum_signal_legacy(test_data_2)
-    print(f"Resultado Teste 2: {result_2}")
-    
-    # Teste 3: Dados normais com momentum
-    print("\n📊 TESTE 3: Dados normais com momentum de alta")
-    test_data_3 = pd.DataFrame({
-        'open': [100.0 + (i * 0.1) for i in range(50)],
-        'high': [100.2 + (i * 0.1) for i in range(50)],
-        'low': [99.8 + (i * 0.1) for i in range(50)],
-        'close': [100.0 + (i * 0.1) for i in range(50)],  # Preço subindo consistentemente
-        'volume': [1000.0 + (i * 10) for i in range(50)]  # Volume crescente
-    }, index=dates)
-    
-    result_3 = find_momentum_signal_legacy(test_data_3)
-    print(f"Resultado Teste 3: {result_3}")
-    
-    print("\n" + "=" * 60)
-    print("🏁 TESTE CONCLUÍDO")
-
-def explain_legacy_fallback_causes():
-    """
-    Explica as principais causas que fazem a análise cair no modo legacy.
-    """
-    print("📚 EXPLICAÇÃO: Por que a análise cai no modo LEGACY?")
-    print("=" * 60)
-    
-    print("\n🔍 PRINCIPAIS CAUSAS:")
-    print("1. 📊 DADOS INSUFICIENTES:")
-    print("   - Menos velas que o mínimo necessário para indicadores técnicos")
-    print(f"   - Mínimo necessário: {max(RSI_PERIOD, MACD_SLOW, BB_PERIOD, EMA_FILTER) + MIN_DATA_BUFFER} velas")
-    print("   - Solução: Aguardar mais dados ou reduzir períodos dos indicadores")
-    
-    print("\n2. 💰 PROBLEMAS DE PREÇO:")
-    print("   - Preços iguais (variação 0.00%)")
-    print("   - Preços inválidos (zero, negativos, NaN)")
-    print("   - Solução: Verificar fonte de dados e conectividade")
-    
-    print("\n3. 📈 PROBLEMAS DE VOLUME:")
-    print("   - Volume médio histórico zero → Multiplicador 999.99x")
-    print("   - Volume atual zero ou inválido")
-    print("   - Muitas velas consecutivas sem volume")
-    print("   - Solução: Usar análise baseada apenas em preço")
-    
-    print("\n4. 🔄 FALHAS NA ANÁLISE INTEGRADA:")
-    print("   - Indicadores técnicos retornam valores inválidos")
-    print("   - Falta de confirmação de momentum")
-    print("   - Baixa confiança nos sinais técnicos")
-    print("   - Solução: Ajustar thresholds ou usar análise mais simples")
-    
-    print("\n5. 🌐 PROBLEMAS DE CONECTIVIDADE:")
-    print("   - WebSocket desconectado ou instável")
-    print("   - API REST com timeout ou erros")
-    print("   - Dados multi-timeframe incompletos")
-    print("   - Solução: Verificar conexão e usar fallbacks robustos")
-    
-    print("\n💡 MELHORIAS IMPLEMENTADAS:")
-    print("✅ Diagnóstico automático da qualidade dos dados")
-    print("✅ Tratamento robusto para volume zero/inválido")
-    print("✅ Análise de tendência melhorada (3-4 velas)")
-    print("✅ Logs detalhados para debugging")
-    print("✅ Validação de dados antes de cada cálculo")
-    print("✅ Fallbacks inteligentes baseados na qualidade dos dados")
-    
-    print("\n🎯 CONFIGURAÇÕES RELEVANTES:")
-    print(f"   📊 RSI_PERIOD: {RSI_PERIOD}")
-    print(f"   📈 PRICE_CHANGE_THRESHOLD: {PRICE_CHANGE_THRESHOLD}%")
-    print(f"   📈 VOLUME_MULTIPLIER_THRESHOLD: {VOLUME_MULTIPLIER_THRESHOLD}x")
-    print(f"   🕐 PRICE_CHANGE_PERIOD_MINUTES: {PRICE_CHANGE_PERIOD_MINUTES}")
-    print(f"   🕐 VOLUME_AVERAGE_PERIOD_MINUTES: {VOLUME_AVERAGE_PERIOD_MINUTES}")
-    
-    print("\n" + "=" * 60)
-
-if __name__ == "__main__":
-    print_current_settings()
-    example_multi_timeframe_usage()
-    print("\n")
-    explain_legacy_fallback_causes()
-    print("\n")
-    test_improved_momentum_analysis()

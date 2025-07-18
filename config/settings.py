@@ -16,6 +16,7 @@ AUTHOR = "David Leati"
 # Modo de operação
 PAPER_TRADING_MODE = True  # True = Simulação, False = Trading Real
 DEBUG_MODE = True
+PERMITIR_REVERSAO_POSICAO = True
 
 # =============================================================================
 # CONFIGURAÇÕES DE TARIFAS E CUSTOS
@@ -40,41 +41,67 @@ ESTIMATED_SPREAD = 0.0001  # 0.01% spread médio estimado
 
 # Parâmetros de trading
 INITIAL_BALANCE = 100.0      # Saldo inicial para paper trading
-TRADE_VALUE_USD = 5.0        # Valor em USD por trade
+TRADE_VALUE_USD = 5.0      # Valor em USD por trade
 STOP_LOSS_PCT = 1.0          # Stop loss em percentual
 TAKE_PROFIT_PCT = 5.0        # Take profit em percentual
 LEVERAGE_LEVEL = 50          # Nível de alavancagem (1x = sem alavancagem)
 
 # Gerenciamento de risco
-MAX_CONCURRENT_TRADES = 10   # Máximo de trades simultâneos
-MAX_DAILY_LOSS = 20.0        # Perda máxima diária em USD
-MAX_POSITION_SIZE_PCT = 10.0 # Máximo percentual do capital por posição
+MAX_CONCURRENT_TRADES = 10    # Máximo de trades simultâneos
+MAX_DAILY_LOSS = 50.0         # Perda máxima diária em USD
+MAX_POSITION_SIZE_PCT = 100.0 # Máximo percentual do capital por posição
 
 # =============================================================================
 # LISTA DE ATIVOS PARA MONITORAMENTO
 # =============================================================================
 
 LISTA_DE_ATIVOS = [
-    # Principais criptomoedas
-    'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT',
-    'XRPUSDT', 'DOTUSDT', 'DOGEUSDT', 'AVAXUSDT', 'LINKUSDT',
-    'MATICUSDT', 'LTCUSDT', 'ATOMUSDT', 'UNIUSDT', 'ETCUSDT',
-    'BCHUSDT', 'FILUSDT', 'TRXUSDT', 'XLMUSDT', 'VETUSDT',
-    'ICPUSDT', 'NEARUSDT', 'ALGOUSDT', 'HBARUSDT', 'EGLDUSDT',
-    'FLOWUSDT', 'MANAUSDT', 'SANDUSDT', 'AXSUSDT', 'THETAUSDT',
-    'FTMUSDT', 'KLAYUSDT', 'HNTUSDT', 'KSMUSDT', 'XTZUSDT',
-    'WAVESUSDT', 'ZILUSDT', 'CHZUSDT', 'ENJUSDT', 'SUSHIUSDT',
-    'SNXUSDT', 'COMPUSDT', 'MKRUSDT', 'YFIUSDT', 'AAVEUSDT',
-    'CRVUSDT', 'BALUSDT', 'RENUSDT', 'UMAUSDT', 'ALPHAUSDT',
+    # === Pilares de Liquidez e Alto Beta ===
+    # Mantemos os principais para liquidez e como termômetro do mercado, 
+    # mas focamos nos que têm maior volatilidade histórica.
+    'BTCUSDT', 
+    'ETHUSDT', 
+    'SOLUSDT', # Essencial para o ecossistema de memecoins e de alta performance
     
-    # Tokens com denominação especial (grupos de 1000)
-    '1000PEPEUSDT', '1000SHIBUSDT', '1000FLOKIUSDT', '1000BONKUSDT',
-    '1000XECUSDT', '1000LUNCUSDT',
+    # === Memecoins de Alta Volatilidade (Núcleo Arrojado) ===
+    # A espinha dorsal de uma estratégia de alto risco. Volatilidade extrema.
+    '1000PEPEUSDT', 
+    '1000SHIBUSDT',
+    'DOGEUSDT',      # A memecoin original, ainda com enorme liquidez e volatilidade
+    'WIFUSDT',       # Dogwifhat, um dos maiores sucessos recentes, altíssima volatilidade
+    '1000BONKUSDT',
+    '1000FLOKIUSDT',
     
-    # Altcoins populares
-    'CHRUSDT', 'GALAUSDT', 'APEUSDT', 'GMTUSDT', 'JASMYUSDT',
-    'WOOUSDT', 'LRCUSDT', 'IMXUSDT', 'OPUSDT', 'INJUSDT',
-    'STGUSDT', 'SPELLUSDT', 'LDOUSDT', 'CVXUSDT', 'GALUSDT'
+    # === Altcoins de Narrativas Quentes (Potencial Explosivo) ===
+    # Foco em setores que atraem muito capital e especulação.
+    
+    # --- Inteligência Artificial (AI) ---
+    'RNDRUSDT',      # Render - GPU descentralizada, narrativa fortíssima
+    'FETUSDT',       # Fetch.ai
+    'WLDUSDT',       # Worldcoin - Altamente volátil e polêmico
+    'TAOUSDT',       # Bittensor
+    
+    # --- Gaming / Metaverso ---
+    'GALAUSDT',      # Continua sendo um player volátil no setor
+    'IMXUSDT',       # Immutable X - A principal L2 para games
+    'BEAMXUSDT',     # Nova identidade da Merit Circle, focada em gaming
+    'APEUSDT',       # ApeCoin, ligada ao ecossistema Yuga Labs
+    
+    # --- Infraestrutura e L2s de Alta Performance ---
+    'INJUSDT',       # Injective - Conhecida por movimentos fortes
+    'SEIUSDT',       # L1 otimizada para velocidade
+    'SUIUSDT',
+    'OPUSDT',        # Optimism - Uma das principais L2 do Ethereum
+    'ARBUSDT',       # Arbitrum - Principal L2 em TVL, muito líquida
+    'TIAUSDT',       # Celestia - Modularidade é uma narrativa forte
+    
+    # === "Cavalos de Batalha" da DeFi com Alta Volatilidade ===
+    # Projetos DeFi que não são "seguros" e apresentam grande variação de preço.
+    'LDOUSDT',       # Lido DAO - Proxy para o staking de ETH
+    'PENDLEUSDT',    # Especulação com yields futuros, muito arrojado
+    'AAVEUSDT',
+    'UNIUSDT',
+    'SNXUSDT'        # Synthetix
 ]
 
 # =============================================================================
@@ -85,7 +112,7 @@ LISTA_DE_ATIVOS = [
 RSI_PERIOD = 7 # Período do RSI (padrão = 14)
 RSI_OVERSOLD = 10 # Nível de sobrecompra do RSI (padrão = 20)
 RSI_OVERBOUGHT = 90 # Nível de sobrevenda do RSI (padrão = 80)
-RSI_WEIGHT = 0.40 # Peso do RSI na análise integrada (padrão = 0.25)
+RSI_WEIGHT = 0.20 # Peso do RSI na análise integrada (padrão = 0.25)
 
 # MACD (Moving Average Convergence Divergence)
 MACD_FAST = 5 # Período rápido (padrão = 12)
@@ -102,16 +129,16 @@ BB_WEIGHT = 0.20 # Peso das Bandas de Bollinger na análise integrada (padrão =
 EMA_SHORT = 7 # Período curto da EMA (padrão = 12)
 EMA_LONG = 14 # Período longo da EMA (padrão = 26)
 EMA_FILTER = 120 # Período da EMA para filtro de tendência (padrão = 200)
-EMA_WEIGHT = 0.20 # Peso da EMA na análise integrada (padrão = 0.25)
+EMA_WEIGHT = 0.40 # Peso da EMA na análise integrada (padrão = 0.25)
 
 # =============================================================================
 # CONFIGURAÇÕES DE ANÁLISE DE MOMENTUM (LEGACY)
 # =============================================================================
 
 # Parâmetros de entrada (Momentum)
-PRICE_CHANGE_THRESHOLD = 1.0        # % mínima de mudança de preço para detectar momentum
-PRICE_CHANGE_PERIOD_MINUTES = 5     # Período em minutos para calcular mudança de preço
-VOLUME_MULTIPLIER_THRESHOLD = 2.0   # Multiplicador mínimo de volume comparado à média
+PRICE_CHANGE_THRESHOLD = 0.0        # % mínima de mudança de preço para detectar momentum
+PRICE_CHANGE_PERIOD_MINUTES = 1     # Período em minutos para calcular mudança de preço
+VOLUME_MULTIPLIER_THRESHOLD = 0.0   # Multiplicador mínimo de volume comparado à média
 VOLUME_AVERAGE_PERIOD_MINUTES = 20  # Período em minutos para calcular volume médio
 
 # Parâmetros de saída (Exaustão)
@@ -127,23 +154,23 @@ VOLUME_DECLINE_THRESHOLD = 0.5      # Multiplicador que indica queda de volume
 # =============================================================================
 
 # Thresholds para sinais integrados
-INTEGRATED_SIGNAL_THRESHOLD_BUY = 0.15   # Score mínimo para sinal de COMPRA
-INTEGRATED_SIGNAL_THRESHOLD_SELL = -0.15 # Score máximo para sinal de VENDA
+INTEGRATED_SIGNAL_THRESHOLD_BUY = 0.12   # Score mínimo para sinal de COMPRA
+INTEGRATED_SIGNAL_THRESHOLD_SELL = -0.12 # Score máximo para sinal de VENDA
 CONFIDENCE_MULTIPLIER = 2.0              # Multiplicador para amplificar confiança
 
 # Thresholds de confiança
-HIGH_CONFIDENCE_THRESHOLD = 0.8          # Confiança alta - aceita sem confirmação
-MEDIUM_CONFIDENCE_THRESHOLD = 0.5        # Confiança média - verifica consenso
-CONSENSUS_INDICATORS_REQUIRED = 3        # Mínimo de indicadores concordando para consenso
+HIGH_CONFIDENCE_THRESHOLD = 0.9          # Confiança alta - aceita sem confirmação
+MEDIUM_CONFIDENCE_THRESHOLD = 0.6        # Confiança média - verifica consenso
+CONSENSUS_INDICATORS_REQUIRED = 4        # Mínimo de indicadores concordando para consenso
 
 # Confirmação de momentum - fatores de redução dos thresholds
 MOMENTUM_CONFIRMATION_PRICE_FACTOR = 0.3  # 30% do threshold de preço
 MOMENTUM_CONFIRMATION_VOLUME_FACTOR = 0.5 # 50% do threshold de volume
 
 # Análise de saída integrada
-EXIT_CONFIDENCE_THRESHOLD = 0.4          # Confiança mínima para sugerir saída
-EXIT_CONFIRMATION_THRESHOLD = 0.6        # Confiança para saída sem confirmação momentum
-RSI_CRITICAL_STRENGTH = 0.6              # Força mínima do RSI para saída crítica
+EXIT_CONFIDENCE_THRESHOLD = 0.6          # Confiança mínima para sugerir saída
+EXIT_CONFIRMATION_THRESHOLD = 0.8        # Confiança para saída sem confirmação momentum
+RSI_CRITICAL_STRENGTH = 0.8              # Força mínima do RSI para saída crítica
 
 # Requisitos de dados
 MIN_DATA_BUFFER = 3                       # Buffer mínimo além do maior período

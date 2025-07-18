@@ -126,8 +126,9 @@ class RealTradingManager:
             binance_symbol = self._normalize_symbol(symbol)
             
             # Verificar permissões de risco
-            if not risk_manager.can_open_position(symbol, trade_value_usd):
-                self.logger.warning(f"❌ Abertura de posição negada pelo gerenciador de risco para {symbol}")
+            can_open, risk_message = risk_manager.can_open_position(symbol, trade_value_usd)
+            if not can_open:
+                self.logger.warning(f"❌ Abertura de posição negada pelo gerenciador de risco para {symbol}: {risk_message}")
                 return False
             
             # Obter preço atual
@@ -186,7 +187,11 @@ class RealTradingManager:
                 self.logger.warning("   Posição aberta SEM proteção de Stop Loss!")
             
             # Registrar no gerenciador de risco e performance
-            risk_manager.open_position(symbol, 'long', entry_price, trade_value_usd, leverage)
+            if not risk_manager.open_position(symbol, 'long', entry_price, trade_value_usd, leverage):
+                self.logger.error(f"❌ Falha ao registrar posição LONG no gerenciador de risco para {symbol}")
+                # Não retornar False aqui pois a posição real já foi aberta na exchange
+                self.logger.warning("   Posição aberta na exchange mas não registrada no gerenciador de risco!")
+            
             performance_monitor.record_trade_start(symbol, 'long', entry_price, trade_value_usd)
             
             self.logger.info(f"🎯 Posição LONG para {symbol} aberta com sucesso!")
@@ -213,8 +218,9 @@ class RealTradingManager:
             binance_symbol = self._normalize_symbol(symbol)
             
             # Verificar permissões de risco
-            if not risk_manager.can_open_position(symbol, trade_value_usd):
-                self.logger.warning(f"❌ Abertura de posição negada pelo gerenciador de risco para {symbol}")
+            can_open, risk_message = risk_manager.can_open_position(symbol, trade_value_usd)
+            if not can_open:
+                self.logger.warning(f"❌ Abertura de posição negada pelo gerenciador de risco para {symbol}: {risk_message}")
                 return False
             
             # Obter preço atual
@@ -273,7 +279,11 @@ class RealTradingManager:
                 self.logger.warning("   Posição aberta SEM proteção de Stop Loss!")
             
             # Registrar no gerenciador de risco e performance
-            risk_manager.open_position(symbol, 'short', entry_price, trade_value_usd, leverage)
+            if not risk_manager.open_position(symbol, 'short', entry_price, trade_value_usd, leverage):
+                self.logger.error(f"❌ Falha ao registrar posição SHORT no gerenciador de risco para {symbol}")
+                # Não retornar False aqui pois a posição real já foi aberta na exchange
+                self.logger.warning("   Posição aberta na exchange mas não registrada no gerenciador de risco!")
+            
             performance_monitor.record_trade_start(symbol, 'short', entry_price, trade_value_usd)
             
             self.logger.info(f"🎯 Posição SHORT para {symbol} aberta com sucesso!")
@@ -358,7 +368,12 @@ class RealTradingManager:
                 self.logger.warning(f"⚠️  Erro ao cancelar ordens: {cancel_error}")
             
             # Registrar fechamento
-            risk_manager.close_position(symbol, current_price or 0)
+            risk_record = risk_manager.close_position(symbol, current_price or 0)
+            if risk_record is None:
+                self.logger.warning(f"⚠️  Posição {symbol} não encontrada no gerenciador de risco")
+            else:
+                self.logger.debug(f"✅ Posição {symbol} fechada no gerenciador de risco")
+                
             if current_price:
                 performance_monitor.record_trade_end(symbol, current_price, unrealized_pnl)
             

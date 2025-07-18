@@ -4,3 +4,4 @@ keys.py
 *.log
 .vscode/
 venv
+*.csv
