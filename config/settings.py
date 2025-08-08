@@ -49,59 +49,23 @@ LEVERAGE_LEVEL = 50          # Nível de alavancagem (1x = sem alavancagem)
 MAX_CONCURRENT_TRADES = 15    # Máximo de trades simultâneos
 MAX_DAILY_LOSS = 50.0         # Perda máxima diária em USD
 MAX_POSITION_SIZE_PCT = 100.0 # Máximo percentual do capital por posição
-LOW_QUALITY_TRADES_LIMIT = 5  # Limite de trades de baixa qualidade (fallback)
+LOW_QUALITY_TRADES_LIMIT = 0  # Limite de trades de baixa qualidade (fallback)
 
 # =============================================================================
 # LISTA DE ATIVOS PARA MONITORAMENTO
 # =============================================================================
 
 LISTA_DE_ATIVOS = [
-    # === Pilares de Liquidez e Alto Beta ===
-    # Mantemos os principais para liquidez e como termômetro do mercado, 
-    # mas focamos nos que têm maior volatilidade histórica.
-    'BTCUSDT', 
-    'ETHUSDT', 
-    'SOLUSDT', # Essencial para o ecossistema de memecoins e de alta performance
-    
-    # === Memecoins de Alta Volatilidade (Núcleo Arrojado) ===
-    # A espinha dorsal de uma estratégia de alto risco. Volatilidade extrema.
-    '1000PEPEUSDT', 
-    '1000SHIBUSDT',
-    'DOGEUSDT',      # A memecoin original, ainda com enorme liquidez e volatilidade
-    'WIFUSDT',       # Dogwifhat, um dos maiores sucessos recentes, altíssima volatilidade
-    '1000BONKUSDT',
-    '1000FLOKIUSDT',
-    
-    # === Altcoins de Narrativas Quentes (Potencial Explosivo) ===
-    # Foco em setores que atraem muito capital e especulação.
-    
-    # --- Inteligência Artificial (AI) ---
-    'RNDRUSDT',      # Render - GPU descentralizada, narrativa fortíssima
-    'FETUSDT',       # Fetch.ai
-    'WLDUSDT',       # Worldcoin - Altamente volátil e polêmico
-    'TAOUSDT',       # Bittensor
-    
-    # --- Gaming / Metaverso ---
-    'GALAUSDT',      # Continua sendo um player volátil no setor
-    'IMXUSDT',       # Immutable X - A principal L2 para games
-    'BEAMXUSDT',     # Nova identidade da Merit Circle, focada em gaming
-    'APEUSDT',       # ApeCoin, ligada ao ecossistema Yuga Labs
-    
-    # --- Infraestrutura e L2s de Alta Performance ---
-    'INJUSDT',       # Injective - Conhecida por movimentos fortes
-    'SEIUSDT',       # L1 otimizada para velocidade
-    'SUIUSDT',
-    'OPUSDT',        # Optimism - Uma das principais L2 do Ethereum
-    'ARBUSDT',       # Arbitrum - Principal L2 em TVL, muito líquida
-    'TIAUSDT',       # Celestia - Modularidade é uma narrativa forte
-    
-    # --- DeFi com alta volatilidade --
-    # Projetos DeFi que não são "seguros" e apresentam grande variação de preço.
-    'LDOUSDT',       # Lido DAO - Proxy para o staking de ETH
-    'PENDLEUSDT',    # Especulação com yields futuros, muito arrojado
-    'AAVEUSDT',
-    'UNIUSDT',
-    'SNXUSDT'        # Synthetix
+    'BTCUSDT', 'ETHUSDT', 'SOLUSDT', '1000PEPEUSDT', '1000SHIBUSDT','DOGEUSDT','WIFUSDT',
+    '1000BONKUSDT','1000FLOKIUSDT','RNDRUSDT','FETUSDT','WLDUSDT','TAOUSDT','GALAUSDT',
+    'IMXUSDT','BEAMXUSDT','APEUSDT','INJUSDT','SEIUSDT','SUIUSDT','OPUSDT','ARBUSDT',
+    'TIAUSDT','LDOUSDT','PENDLEUSDT','AAVEUSDT','UNIUSDT','SNXUSDT','MATICUSDT','AVAXUSDT',
+    'NEARUSDT','FTMUSDT','ATOMUSDT','DOTUSDT','LINKUSDT','LTCUSDT','BCHUSDT','FILUSDT','ICPUSDT',
+    'THETAUSDT','GRTUSDT','CRVUSDT','MKRUSDT','COMPUSDT','SUSHIUSDT','AXSUSDT','SANDUSDT','MANAUSDT',
+    'ENJUSDT','XRPUSDT','ADAUSDT','TRXUSDT','BNBUSDT','ETCUSDT','XLMUSDT','EOSUSDT','XTZUSDT','KSMUSDT',
+    'ZECUSDT','DASHUSDT','NEOUSDT','WAVESUSDT','ALGOUSDT','EGLDUSDT','CHZUSDT','HBARUSDT','ONEUSDT',
+    'CELOUSDT','ANKRUSDT','STORJUSDT','BNXUSDT','ROSEUSDT','JASMYUSDT','AUDIOUSDT','MASKUSDT','LPTUSDT',
+    'HIGHUSDT','PEOPLEUSDT','DYDXUSDT','GMXUSDT','LRCUSDT','IDUSDT','APTUSDT','JUPUSDT','PYTHUSDT'
 ]
 
 # =============================================================================
@@ -112,24 +76,24 @@ LISTA_DE_ATIVOS = [
 RSI_PERIOD = 7 # Período do RSI (padrão = 14)
 RSI_OVERSOLD = 20 # Nível de sobrecompra do RSI (padrão = 20)
 RSI_OVERBOUGHT = 80 # Nível de sobrevenda do RSI (padrão = 80)
-RSI_WEIGHT = 0.20 # Peso do RSI na análise integrada (padrão = 0.25)
+RSI_WEIGHT = 0.15 # Peso do RSI na análise integrada (padrão = 0.25)
 
 # MACD (Moving Average Convergence Divergence)
 MACD_FAST = 5 # Período rápido (padrão = 12)
 MACD_SLOW = 13 # Período lento (padrão = 26)
 MACD_SIGNAL = 6 # Período do sinal (padrão = 9)
-MACD_WEIGHT = 0.40 # Peso do MACD na análise integrada (padrão = 0.25)
+MACD_WEIGHT = 0.30 # Peso do MACD na análise integrada (padrão = 0.25)
 
 # Bandas de Bollinger
 BB_PERIOD = 14 # Período das Bandas de Bollinger (padrão = 20)
 BB_STD = 2.0 # Desvio padrão para as bandas (padrão = 2.0)
-BB_WEIGHT = 0.20 # Peso das Bandas de Bollinger na análise integrada (padrão = 0.25)
+BB_WEIGHT = 0.15 # Peso das Bandas de Bollinger na análise integrada (padrão = 0.25)
 
 # Médias Móveis Exponenciais
 EMA_SHORT = 7 # Período curto da EMA (padrão = 12)
 EMA_LONG = 14 # Período longo da EMA (padrão = 26)
 EMA_FILTER = 120 # Período da EMA para filtro de tendência (padrão = 200)
-EMA_WEIGHT = 0.20 # Peso da EMA na análise integrada (padrão = 0.25)
+EMA_WEIGHT = 0.40 # Peso da EMA na análise integrada (padrão = 0.25)
 
 # =============================================================================
 # CONFIGURAÇÕES DE ANÁLISE DE MOMENTUM (LEGACY)
@@ -154,8 +118,8 @@ VOLUME_DECLINE_THRESHOLD = 0.5      # Multiplicador que indica queda de volume
 # =============================================================================
 
 # Thresholds para sinais integrados
-INTEGRATED_SIGNAL_THRESHOLD_BUY = 0.10   # Score mínimo para sinal de COMPRA
-INTEGRATED_SIGNAL_THRESHOLD_SELL = -0.10 # Score máximo para sinal de VENDA
+INTEGRATED_SIGNAL_THRESHOLD_BUY = 0.05   # Score mínimo para sinal de COMPRA
+INTEGRATED_SIGNAL_THRESHOLD_SELL = -0.05 # Score máximo para sinal de VENDA
 CONFIDENCE_MULTIPLIER = 2.0              # Multiplicador para amplificar confiança
 
 # Thresholds de confiança
