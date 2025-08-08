@@ -1,7 +1,6 @@
 # config/settings.py
 # Configurações centralizadas do CryptoAI Trading Bot
 
-import os
 from typing import List, Dict, Any
 
 # =============================================================================
@@ -22,8 +21,8 @@ PERMITIR_REVERSAO_POSICAO = True
 # CONFIGURAÇÕES DE TARIFAS E CUSTOS
 # =============================================================================
 
-# Tarifas da Binance (Paper Trading Realista)
-BINANCE_MAKER_FEE = 0.0005  # 0.05% para maker orders
+# Tarifas da Binance
+BINANCE_MAKER_FEE = 0.0002  # 0.02% para maker orders
 BINANCE_TAKER_FEE = 0.0005  # 0.05% para taker orders (mais comum em bots rápidos)
 DEFAULT_TRADING_FEE = BINANCE_TAKER_FEE  # Usar taker fee como padrão
 
@@ -96,7 +95,7 @@ LISTA_DE_ATIVOS = [
     'ARBUSDT',       # Arbitrum - Principal L2 em TVL, muito líquida
     'TIAUSDT',       # Celestia - Modularidade é uma narrativa forte
     
-    # === "Cavalos de Batalha" da DeFi com Alta Volatilidade ===
+    # --- DeFi com alta volatilidade --
     # Projetos DeFi que não são "seguros" e apresentam grande variação de preço.
     'LDOUSDT',       # Lido DAO - Proxy para o staking de ETH
     'PENDLEUSDT',    # Especulação com yields futuros, muito arrojado
@@ -162,7 +161,7 @@ CONFIDENCE_MULTIPLIER = 2.0              # Multiplicador para amplificar confian
 # Thresholds de confiança
 HIGH_CONFIDENCE_THRESHOLD = 0.9          # Confiança alta - aceita sem confirmação
 MEDIUM_CONFIDENCE_THRESHOLD = 0.6        # Confiança média - verifica consenso
-CONSENSUS_INDICATORS_REQUIRED = 4        # Mínimo de indicadores concordando para consenso
+CONSENSUS_INDICATORS_REQUIRED = 3        # Mínimo de indicadores concordando para consenso
 
 # Confirmação de momentum - fatores de redução dos thresholds
 MOMENTUM_CONFIRMATION_PRICE_FACTOR = 0.3  # 30% do threshold de preço
